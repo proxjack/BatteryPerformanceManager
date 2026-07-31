@@ -77,7 +77,7 @@ internal sealed class TrayApplicationContext : ApplicationContext
         _busy = true;
         try
         {
-            TaskRunResult result = await Task.Run(() => ScheduledTaskRunner.Run(profile.TaskName));
+            TaskRunResult result = await Task.Run(() => HelperClient.SwitchProfile(profile.StateId));
 
             if (result.Success)
             {
