@@ -9,3 +9,6 @@ dell-battery-charge-log.jsonl
 .vs/
 .idea/
 *.user
+
+# Riferimento visivo per il logo (anteprima di stock icon, non un asset con licenza chiara)
+logo.webp

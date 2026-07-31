@@ -18,10 +18,17 @@ param(
     [ValidateSet('60_65', '75_80', 'standard', 'fastcharge')]
     [string]$Profile,
 
-    [string]$LogPath = (Join-Path $PSScriptRoot 'dell-battery-charge-log.jsonl')
+    [string]$LogPath
 )
 
 $ErrorActionPreference = 'Stop'
+
+if (-not $LogPath) {
+    # $PSScriptRoot non è affidabile come default-value di parametro quando lo script
+    # parte da una Scheduled Task (working directory diversa, es. System32): lo calcoliamo
+    # qui nel corpo dello script, dove è sempre risolto correttamente.
+    $LogPath = Join-Path $PSScriptRoot 'dell-battery-charge-log.jsonl'
+}
 
 function Test-IsAdministrator {
     $identity = [Security.Principal.WindowsIdentity]::GetCurrent()
@@ -86,8 +93,18 @@ if ($PSCmdlet.ShouldProcess("DellSmbios:\PowerManagement", "Applica profilo '$Pr
     Set-Item -Path DellSmbios:\PowerManagement\PrimaryBattChargeCfg -Value $cfg
 
     if ($cfg -eq 'Custom') {
-        Set-Item -Path DellSmbios:\PowerManagement\CustomChargeStart -Value $start
-        Set-Item -Path DellSmbios:\PowerManagement\CustomChargeStop -Value $stop
+        # Il BIOS valida ogni singola scrittura rispetto al valore CORRENTE dell'altro
+        # estremo (non rispetto alla coppia finale): passando da un intervallo più basso
+        # a uno più alto (es. 60-65 -> 75-80), scrivere prima Start fallisce perché in
+        # quel momento Stop è ancora il vecchio valore, più basso del nuovo Start.
+        # Se il primo ordine fallisce per questo motivo, proviamo l'ordine opposto.
+        try {
+            Set-Item -Path DellSmbios:\PowerManagement\CustomChargeStop -Value $stop
+            Set-Item -Path DellSmbios:\PowerManagement\CustomChargeStart -Value $start
+        } catch {
+            Set-Item -Path DellSmbios:\PowerManagement\CustomChargeStart -Value $start
+            Set-Item -Path DellSmbios:\PowerManagement\CustomChargeStop -Value $stop
+        }
     }
 
     $after = Get-CurrentChargeState

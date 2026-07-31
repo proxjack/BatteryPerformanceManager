@@ -7,9 +7,7 @@
     <ApplicationHighDpiMode>PerMonitorV2</ApplicationHighDpiMode>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
-    <!-- Nessuna icona .ico personalizzata per ora: la tray app usa un'icona di sistema
-         come placeholder (vedi TrayApplicationContext.cs). Per personalizzarla, aggiungi
-         un file .ico al progetto e imposta qui <ApplicationIcon>nome.ico</ApplicationIcon>. -->
+    <ApplicationIcon>battery.ico</ApplicationIcon>
     <ApplicationManifest>app.manifest</ApplicationManifest>
     <AssemblyName>TrayApp</AssemblyName>
     <RootNamespace>BatteryChargeManager.TrayApp</RootNamespace>
@@ -26,6 +24,13 @@
     <!-- Wrapper .NET per il Task Scheduler di Windows: più robusto e verificabile
          programmaticamente rispetto a shellare schtasks.exe (stato, ultimo exit code, ecc). -->
     <PackageReference Include="TaskScheduler" Version="2.10.1" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- Incorporata anche come risorsa, così il NotifyIcon in tray può caricarla a runtime
+         a una dimensione precisa (vedi TrayApplicationContext.cs), oltre a essere l'icona
+         dell'eseguibile stesso (ApplicationIcon sopra). -->
+    <EmbeddedResource Include="battery.ico" />
   </ItemGroup>
 
 </Project>

@@ -75,7 +75,9 @@ foreach ($task in $obsolete) {
 # Register-ScheduledTask crea da sé la cartella '\BatteryChargeManager\' se non esiste ancora.
 $results = foreach ($taskName in $profileTasks.Keys) {
     $profileArg = $profileTasks[$taskName]
-    $arguments = "-NoProfile -ExecutionPolicy Bypass -File `"$ScriptPath`" -Profile $profileArg"
+    # -WindowStyle Hidden: nessuna finestra PowerShell visibile durante il cambio profilo,
+    # coerente con l'interfaccia minimale della tray app (solo menu, nessun artefatto visivo).
+    $arguments = "-NoProfile -WindowStyle Hidden -ExecutionPolicy Bypass -File `"$ScriptPath`" -Profile $profileArg"
 
     # Idempotenza: rimuovi la task esistente (se c'è) prima di ricrearla, così qualsiasi
     # modifica a percorso/argomenti/principal viene applicata in modo pulito.
@@ -85,7 +87,10 @@ $results = foreach ($taskName in $profileTasks.Keys) {
     }
 
     try {
-        $action = New-ScheduledTaskAction -Execute 'powershell.exe' -Argument $arguments
+        # WorkingDirectory esplicita: senza, la task parte con CWD in System32, il che ha
+        # causato in passato un fallimento di $PSScriptRoot nel valore di default di un
+        # parametro dello script (vedi commento in Set-DellBatteryChargeProfile.ps1).
+        $action = New-ScheduledTaskAction -Execute 'powershell.exe' -Argument $arguments -WorkingDirectory (Split-Path -Parent $ScriptPath)
 
         # Nessun -Trigger: la task non parte mai da sola, solo su richiesta esplicita
         # (Start-ScheduledTask / schtasks /Run / Task Scheduler COM API dalla tray app).

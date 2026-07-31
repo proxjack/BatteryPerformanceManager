@@ -46,9 +46,7 @@ internal sealed class TrayApplicationContext : ApplicationContext
 
         _notifyIcon = new NotifyIcon
         {
-            // Icona placeholder: nessun asset .ico personalizzato incluso nel progetto.
-            // Per cambiarla, aggiungi un file .ico e impostalo qui.
-            Icon = SystemIcons.Application,
+            Icon = LoadTrayIcon(),
             Text = "Battery Charge Manager",
             ContextMenuStrip = menu,
             Visible = true,
@@ -109,6 +107,23 @@ internal sealed class TrayApplicationContext : ApplicationContext
         catch (Exception ex)
         {
             ErrorLog.Write($"Impossibile aggiornare l'avvio automatico: {ex.Message}");
+        }
+    }
+
+    // Carica battery.ico dalla risorsa incorporata a 32x32 (dimensione nativa della tray
+    // a DPI standard), invece di lasciare che Windows scali una dimensione non ottimale.
+    private static Icon LoadTrayIcon()
+    {
+        try
+        {
+            using Stream? stream = typeof(TrayApplicationContext).Assembly
+                .GetManifestResourceStream("BatteryChargeManager.TrayApp.battery.ico");
+
+            return stream is not null ? new Icon(stream, new Size(32, 32)) : SystemIcons.Application;
+        }
+        catch
+        {
+            return SystemIcons.Application;
         }
     }
 
