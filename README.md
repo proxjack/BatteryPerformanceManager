@@ -1,120 +1,151 @@
 # Battery Charge Manager
 
-Tray app per Windows che cambia il profilo di ricarica della batteria del Dell XPS 14
-con un click dal system tray, senza prompt UAC e senza far girare la tray app come
-amministratore.
+A Windows tray app that switches the Dell XPS 14 battery charge profile with a
+single click from the system tray — no UAC prompts, and the tray app itself
+never runs as administrator.
 
-Si appoggia allo script PowerShell già esistente e testato manualmente,
-[`Set-DellBatteryChargeProfile.ps1`](Set-DellBatteryChargeProfile.ps1) (non modificarlo),
-che parla col BIOS tramite il modulo `DellBIOSProvider`.
+It relies on the existing, hand-tested PowerShell script
+[`Set-DellBatteryChargeProfile.ps1`](Set-DellBatteryChargeProfile.ps1), which
+talks to the BIOS through the `DellBIOSProvider` module.
 
-## Come funziona (in breve)
+## How it works (short version)
 
-1. **Una tantum**, da amministratore: [`setup-scheduled-tasks.ps1`](setup-scheduled-tasks.ps1)
-   crea 4 Attività Pianificate (una per profilo) configurate per girare con privilegi
-   elevati ma **senza trigger automatici** — partono solo su richiesta.
-2. **Ogni giorno**: la tray app (`TrayApp.exe`), che gira SENZA privilegi amministrativi,
-   avvia l'Attività Pianificata giusta quando scegli un profilo dal menu. Poiché la task
-   è già registrata come elevata, il Task Scheduler (che gira come SYSTEM) la esegue con
-   il token elevato dell'utente senza mostrare il prompt UAC — non serve elevare la
-   tray app stessa.
+1. **One-time setup**, as administrator:
+   [`setup-scheduled-tasks.ps1`](setup-scheduled-tasks.ps1) creates 4 Windows
+   Scheduled Tasks (one per profile), configured to run with the highest
+   privileges but with **no automatic trigger** — they only start on demand,
+   and run silently (no visible console window).
+2. **Day to day**: the tray app (`TrayApp.exe`), which runs WITHOUT admin
+   privileges, starts the right Scheduled Task when you pick a profile from
+   the menu. Since the task is already registered as elevated, the Task
+   Scheduler service (which runs as SYSTEM) launches it with the user's
+   elevated token directly, without showing a UAC prompt — the tray app
+   itself never needs to be elevated.
 
-## Struttura del progetto
+## Project structure
 
 ```
 /BatteryChargeManager
-  /TrayApp                             <- progetto C# WinForms (.NET 8)
-  Set-DellBatteryChargeProfile.ps1     <- script esistente, NON modificato
-  setup-scheduled-tasks.ps1            <- script di setup una tantum
+  /TrayApp                             <- C# WinForms project (.NET 8)
+  Set-DellBatteryChargeProfile.ps1     <- existing script, not modified by the app
+  setup-scheduled-tasks.ps1            <- one-time setup script
+  Get-DellBatteryChargeState.ps1       <- read-only script to check the current charge state
   README.md
 ```
 
-## 1. Compilare la tray app
+## 1. Build the tray app
 
-Richiede il .NET 8 SDK (non solo il runtime). Verifica con:
+Requires the .NET 8 SDK (not just the runtime). Check with:
 
 ```bash
 dotnet --list-sdks
 ```
 
-Se non compare una riga `8.0.x`, installa l'SDK da https://aka.ms/dotnet/download
-(o `winget install Microsoft.DotNet.SDK.8`).
+If no `8.0.x` line shows up, install the SDK from
+https://aka.ms/dotnet/download (or `winget install Microsoft.DotNet.SDK.8`).
 
-Dalla cartella `TrayApp`:
+From the `TrayApp` folder:
 
 ```bash
 dotnet restore
 dotnet publish -c Release -r win-x64 --self-contained true
 ```
 
-L'eseguibile standalone (single-file, nessuna dipendenza .NET da installare per
-l'utente finale) viene generato in:
+The standalone executable (single-file, no .NET dependency to install for the
+end user) is produced at:
 
 ```
 TrayApp\bin\Release\net8.0-windows\win-x64\publish\TrayApp.exe
 ```
 
-Se `dotnet restore` fallisce a risolvere il pacchetto NuGet `TaskScheduler` alla
-versione indicata in `TrayApp.csproj`, aggiorna alla versione più recente disponibile con:
+If `dotnet restore` fails to resolve the `TaskScheduler` NuGet package at the
+version pinned in `TrayApp.csproj`, bump it to the latest available version:
 
 ```bash
 dotnet add TrayApp.csproj package TaskScheduler
 ```
 
-## 2. Setup una tantum (da amministratore)
+## 2. One-time setup (as administrator)
 
-Apri PowerShell **come amministratore** e lancia:
+Open PowerShell **as administrator** and run:
 
 ```powershell
 cd "BatteryChargeManager"
 .\setup-scheduled-tasks.ps1
 ```
 
-Lo script crea le 4 Attività Pianificate in `\BatteryChargeManager\` (60_65, 75_80,
-Standard, FastCharge), ognuna configurata per eseguire
-`Set-DellBatteryChargeProfile.ps1` col profilo corrispondente. È idempotente: puoi
-rilanciarlo in sicurezza (es. dopo aver spostato la cartella del progetto o cambiato
-l'elenco profili) — aggiorna le task esistenti e rimuove quelle di un set di profili
-precedente, invece di duplicarle o lasciarle in giro.
+The script creates 4 Scheduled Tasks under `\BatteryChargeManager\` (`60_65`,
+`75_80`, `Standard`, `FastCharge`), each configured to run
+`Set-DellBatteryChargeProfile.ps1` with the matching profile. It's
+idempotent: rerunning it is safe (e.g. after moving the project folder or
+changing the profile list) — it updates existing tasks and removes any left
+over from a previous profile set, instead of duplicating or leaving stale
+ones around.
 
-Se cambi percorso allo script sorgente, passa `-ScriptPath`:
+If the source script lives somewhere else, pass `-ScriptPath`:
 
 ```powershell
-.\setup-scheduled-tasks.ps1 -ScriptPath "D:\altro\percorso\Set-DellBatteryChargeProfile.ps1"
+.\setup-scheduled-tasks.ps1 -ScriptPath "D:\some\other\path\Set-DellBatteryChargeProfile.ps1"
 ```
 
-## 3. Uso quotidiano
+## 3. Day-to-day use
 
-Avvia `TrayApp.exe` (copialo dove preferisci, es. `%LOCALAPPDATA%\BatteryChargeManager\`).
-Compare un'icona nella system tray. Click destro per il menu:
+Launch `TrayApp.exe` (copy it wherever you like, e.g.
+`%LOCALAPPDATA%\BatteryChargeManager\`). An icon appears in the system tray.
+Right-click for the menu:
 
-- **60-65 (usura minima)** / **75-80** / **Standard (ricarica fino al 100%)** / **Fast charge**
-  — applica il profilo corrispondente (nessun prompt UAC)
-- **Avvio automatico** — abilita/disabilita l'avvio della tray app al login (checkbox)
-- **Esci**
+- **60-65 (minimal wear)** / **75-80** / **Standard (charges up to 100%)** /
+  **Fast charge** — applies the corresponding profile (no UAC prompt, no
+  visible window)
+- **Auto-start** — enables/disables the tray app starting at login (checkbox)
+- **Exit**
 
-Il profilo applicato con successo l'ultima volta resta marcato nel menu (con la spunta)
-anche dopo aver riavviato l'app o il PC — è solo un'indicazione visiva, **non viene mai
-riapplicato automaticamente**.
+The last successfully applied profile stays checked in the menu even after
+restarting the app or the PC — it's purely a visual indicator, **it is never
+reapplied automatically**.
 
-### Se qualcosa va storto
+### Checking the current state
 
-L'interfaccia è volutamente minimale: **nessun popup, nessuna notifica toast**. Se un
-cambio profilo fallisce (task non trovata → setup non ancora eseguito, oppure script
-fallito per BIOS non disponibile / valori fuori range), il dettaglio finisce in:
+To verify what's actually set on the BIOS right now (independent of the tray
+app's own state file), run, as administrator:
+
+```powershell
+.\Get-DellBatteryChargeState.ps1
+```
+
+It prints `PrimaryBattChargeCfg`, `CustomChargeStart`, `CustomChargeStop`, and
+which of the 4 profiles they currently match. Read-only, changes nothing.
+
+### If something goes wrong
+
+The interface is deliberately minimal: **no popups, no toast notifications**.
+If a profile switch fails (task not found → setup hasn't been run yet, or the
+script itself failed — BIOS path unavailable, values out of range), the
+detail is written to:
 
 ```
 %APPDATA%\BatteryChargeManager\errors.log
 ```
 
-Lo stato dell'ultimo profilo è in `%APPDATA%\BatteryChargeManager\state.json`.
+The last applied profile is stored in
+`%APPDATA%\BatteryChargeManager\state.json`.
 
-Il log dettagliato prodotto dallo script ad ogni esecuzione (stato prima/dopo) resta
-quello già esistente, `dell-battery-charge-log.jsonl`, accanto allo script.
+The detailed log the script writes on every run (state before/after) is the
+existing `dell-battery-charge-log.jsonl`, next to the script.
 
-## Cosa NON fa questa app
+## Known BIOS quirk: profile switch ordering
 
-- Non modifica `Set-DellBatteryChargeProfile.ps1`.
-- Non fa mai girare la tray app con privilegi di amministratore.
-- Non mostra notifiche toast, popup di conferma o icone diverse per profilo.
-- Non riapplica automaticamente un profilo all'avvio dell'app o del PC.
+The DellBIOSProvider validates each write to `CustomChargeStart` /
+`CustomChargeStop` against the *current* value of the other bound, not the
+final pair — so moving from a lower custom range to a higher one (e.g.
+60-65 → 75-80) fails if `Start` is written before `Stop` is raised. The
+script handles this by writing `Stop` first, then `Start`, and retrying with
+the opposite order if the first attempt fails — this covers both directions
+(raising or lowering the range).
+
+## What this app does NOT do
+
+- It does not modify `Set-DellBatteryChargeProfile.ps1`'s core logic.
+- It never runs the tray app itself with administrator privileges.
+- It shows no toast notifications, confirmation popups, or per-profile icons.
+- It never reapplies a profile automatically on app or PC startup.
