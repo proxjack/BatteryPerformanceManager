@@ -1,0 +1,31 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <UseWindowsForms>true</UseWindowsForms>
+    <ApplicationHighDpiMode>PerMonitorV2</ApplicationHighDpiMode>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <!-- Nessuna icona .ico personalizzata per ora: la tray app usa un'icona di sistema
+         come placeholder (vedi TrayApplicationContext.cs). Per personalizzarla, aggiungi
+         un file .ico al progetto e imposta qui <ApplicationIcon>nome.ico</ApplicationIcon>. -->
+    <ApplicationManifest>app.manifest</ApplicationManifest>
+    <AssemblyName>TrayApp</AssemblyName>
+    <RootNamespace>BatteryChargeManager.TrayApp</RootNamespace>
+
+    <!-- Pubblicazione standalone: nessuna dipendenza da .NET installato sul PC dell'utente. -->
+    <SelfContained>true</SelfContained>
+    <RuntimeIdentifier>win-x64</RuntimeIdentifier>
+    <PublishSingleFile>true</PublishSingleFile>
+    <IncludeNativeLibrariesForSelfExtract>true</IncludeNativeLibrariesForSelfExtract>
+    <EnableCompressionInSingleFile>true</EnableCompressionInSingleFile>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- Wrapper .NET per il Task Scheduler di Windows: più robusto e verificabile
+         programmaticamente rispetto a shellare schtasks.exe (stato, ultimo exit code, ecc). -->
+    <PackageReference Include="TaskScheduler" Version="2.10.1" />
+  </ItemGroup>
+
+</Project>

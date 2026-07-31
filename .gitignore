@@ -1,0 +1,11 @@
+# Build output
+[Bb]in/
+[Oo]bj/
+
+# Log runtime prodotto da Set-DellBatteryChargeProfile.ps1 (stato prima/dopo ogni esecuzione)
+dell-battery-charge-log.jsonl
+
+# Visual Studio / Rider
+.vs/
+.idea/
+*.user
