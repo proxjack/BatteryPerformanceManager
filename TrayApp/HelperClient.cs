@@ -1,4 +1,5 @@
 using System.IO.Pipes;
+using System.Text;
 using Microsoft.Win32.TaskScheduler;
 // Alias esplicito: "Task" esiste sia in Microsoft.Win32.TaskScheduler (una scheduled task)
 // sia in System.Threading.Tasks (incluso dagli implicit usings del progetto).
@@ -42,8 +43,11 @@ internal static class HelperClient
                     "Assicurati di aver eseguito setup-scheduled-tasks.ps1 come amministratore.");
             }
 
-            using var writer = new StreamWriter(client) { AutoFlush = true };
-            using var reader = new StreamReader(client);
+            // leaveOpen: true su entrambi — altrimenti il primo dei due a essere smaltito
+            // chiude la pipe sottostante, e il secondo lancia "Cannot access a closed pipe"
+            // durante il proprio Dispose, anche se la richiesta è già andata a buon fine.
+            using var writer = new StreamWriter(client, Encoding.UTF8, bufferSize: 1024, leaveOpen: true) { AutoFlush = true };
+            using var reader = new StreamReader(client, Encoding.UTF8, detectEncodingFromByteOrderMarks: true, bufferSize: 1024, leaveOpen: true);
 
             writer.WriteLine(profileId);
             string? response = reader.ReadLine();
