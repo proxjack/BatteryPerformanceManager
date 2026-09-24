@@ -7,7 +7,7 @@
     <ApplicationHighDpiMode>PerMonitorV2</ApplicationHighDpiMode>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
-    <ApplicationIcon>battery.ico</ApplicationIcon>
+    <ApplicationIcon>app.ico</ApplicationIcon>
     <ApplicationManifest>app.manifest</ApplicationManifest>
     <AssemblyName>TrayApp</AssemblyName>
     <RootNamespace>BatteryChargeManager.TrayApp</RootNamespace>
@@ -30,7 +30,7 @@
     <!-- Also embedded as a resource, so the tray NotifyIcon can load it at runtime at a
          precise size (see TrayApplicationContext.cs), besides being the icon of the
          executable itself (ApplicationIcon above). -->
-    <EmbeddedResource Include="battery.ico" />
+    <EmbeddedResource Include="app.ico" />
   </ItemGroup>
 
 </Project>

@@ -1,3 +1,5 @@
+<p align="center"><img src="assets/logo.svg" width="128" alt="Battery Charge Manager logo"></p>
+
 # Battery Charge Manager
 
 A Windows tray app that switches the Dell XPS 14 battery charge profile and
@@ -93,6 +95,7 @@ falls back to the last mode applied by this app.
 ```
 /BatteryChargeManager
   /TrayApp                             <- C# WinForms project (.NET 8)
+  /assets                              <- logo SVGs and the script that builds TrayApp/app.ico
   Set-DellBatteryChargeProfile.ps1     <- existing script, for manual/CLI use
   BatteryChargeHelper.ps1              <- persistent elevated helper (named pipe server): charge profiles + thermal mode
   setup-scheduled-tasks.ps1            <- one-time setup script
@@ -131,6 +134,14 @@ version pinned in `TrayApp.csproj`, bump it to the latest available version:
 ```bash
 dotnet add TrayApp.csproj package TaskScheduler
 ```
+
+### Changing the icon
+
+The tray icon (`TrayApp/app.ico`) is committed, so this is only needed if you
+change the logo: edit `assets/logo.svg` (32 px and up) and/or
+`assets/logo-small.svg` (16-24 px, simplified so it stays readable in the
+tray), then run `python assets/build-icon.py` (needs Microsoft Edge and Python
+with Pillow) and rebuild the tray app.
 
 ## 2. One-time setup (as administrator)
 

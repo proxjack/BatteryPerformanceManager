@@ -162,16 +162,18 @@ internal sealed class TrayApplicationContext : ApplicationContext
         }
     }
 
-    // Loads battery.ico from the embedded resource at 32x32 (the tray's native size at
-    // standard DPI), instead of letting Windows scale a non-optimal size.
+    // Loads the app.ico frame matching the tray's icon size at the current display scaling
+    // (16 px at 100%, 20 at 125%, 24 at 150%, 28 at 175%, 32 at 200%...: the process is
+    // DPI-aware, so SmallIconSize is already scaled), instead of letting Windows shrink a
+    // bigger frame - the small frames are simplified by hand to stay readable.
     private static Icon LoadTrayIcon()
     {
         try
         {
             using Stream? stream = typeof(TrayApplicationContext).Assembly
-                .GetManifestResourceStream("BatteryChargeManager.TrayApp.battery.ico");
+                .GetManifestResourceStream("BatteryChargeManager.TrayApp.app.ico");
 
-            return stream is not null ? new Icon(stream, new Size(32, 32)) : SystemIcons.Application;
+            return stream is not null ? new Icon(stream, SystemInformation.SmallIconSize) : SystemIcons.Application;
         }
         catch
         {

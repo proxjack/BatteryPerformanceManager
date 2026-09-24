@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="256" height="256" viewBox="0 0 64 64">
+  <title>Battery Charge Manager (small sizes)</title>
+  <!-- Same design as logo.svg, simplified for 16-24 px: two thicker pins per side and a bigger bolt, so it stays readable in the tray. -->
+  <g stroke="#1D9E75" stroke-linecap="round" fill="none">
+    <rect x="13" y="13" width="38" height="38" rx="7" stroke-width="7"/>
+    <path stroke-width="7" d="M25 4.5V11M39 4.5V11M25 53V59.5M39 53V59.5M4.5 25H11M4.5 39H11M53 25H59.5M53 39H59.5"/>
+  </g>
+  <path fill="#EF9F27" d="M35.75 17L23.25 34.5H30.75L28.25 47L40.75 29.5H33.25Z"/>
+</svg>
