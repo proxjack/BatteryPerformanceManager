@@ -259,3 +259,11 @@ lowering the range).
   the tray icon.
 - It never reapplies a profile or thermal mode automatically on app or PC startup.
 - It doesn't replace Dell Optimizer: the thermal mode goes through it.
+
+## License
+
+Copyright © 2026 Jacopo Garau. All rights reserved.
+
+This source code is published for reference only. No permission is granted to
+use, copy, modify, or distribute it, in whole or in part, without the prior
+written consent of the author.
