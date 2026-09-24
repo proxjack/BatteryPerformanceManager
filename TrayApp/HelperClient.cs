@@ -29,7 +29,11 @@ internal static class HelperClient
     private static readonly TimeSpan QuickConnectTimeout = TimeSpan.FromMilliseconds(300);
     private static readonly TimeSpan FirstStartConnectTimeout = TimeSpan.FromSeconds(25);
 
-    public static TaskRunResult SwitchProfile(string profileId)
+    public static TaskRunResult SwitchProfile(string profileId) => SendRequest(profileId);
+
+    public static TaskRunResult SetThermalMode(string modeId) => SendRequest($"thermal:{modeId}");
+
+    private static TaskRunResult SendRequest(string request)
     {
         try
         {
@@ -49,7 +53,7 @@ internal static class HelperClient
             using var writer = new StreamWriter(client, Encoding.UTF8, bufferSize: 1024, leaveOpen: true) { AutoFlush = true };
             using var reader = new StreamReader(client, Encoding.UTF8, detectEncodingFromByteOrderMarks: true, bufferSize: 1024, leaveOpen: true);
 
-            writer.WriteLine(profileId);
+            writer.WriteLine(request);
             string? response = reader.ReadLine();
 
             if (response == "OK")

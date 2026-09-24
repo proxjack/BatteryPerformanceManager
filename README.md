@@ -1,15 +1,17 @@
 # Battery Charge Manager
 
-A Windows tray app that switches the Dell XPS 14 battery charge profile with a
-single click from the system tray — no UAC prompts, and the tray app itself
-never runs as administrator.
+A Windows tray app that switches the Dell XPS 14 battery charge profile and
+the Dell Optimizer thermal mode (Optimized / Cool / Quiet / Ultra Performance)
+with a single click from the system tray — no UAC prompts, and the tray app
+itself never runs as administrator.
 
 It relies on the existing, hand-tested PowerShell script
 [`Set-DellBatteryChargeProfile.ps1`](Set-DellBatteryChargeProfile.ps1), which
 talks to the BIOS through the `DellBIOSProvider` module, and on a persistent
 elevated helper ([`BatteryChargeHelper.ps1`](BatteryChargeHelper.ps1)) that
 applies the same logic without the per-click elevation cost — see
-[Architecture](#architecture) below.
+[Architecture](#architecture) below. The same helper also sets the thermal
+mode, through Dell Optimizer's own CLI — see [Thermal mode](#thermal-mode).
 
 ## How it works (short version)
 
@@ -56,13 +58,43 @@ AppInfo/consent-prompt path that triggers when a user manually elevates a
 program. This only works because the current user is actually a member of
 the local Administrators group.
 
+## Thermal mode
+
+The thermal mode is **not** a `DellBIOSProvider` attribute on this XPS 14
+(`DellSmbios:\PowerManagement\ThermalManagement` does not exist). Dell
+Optimizer sets it through the BIOS SMBIOS interface ("User Selectable Thermal
+Tables"), so the helper goes through Dell Optimizer's official CLI instead:
+
+```
+"C:\Program Files\Dell\DellOptimizer\do-cli.exe" /configure -name=SystemPowerConfiguration.ThermalMode -value=<Optimized|Cool|Quiet|Ultra>
+```
+
+`do-cli.exe` requires administrator rights, which the helper already has. The
+result is exactly the same as clicking the mode in Dell Optimizer's own UI —
+including Dell Optimizer's sync with the Windows power mode (with "Sync with
+Windows power mode" on, which is the default, Ultra also switches Windows to
+"Best performance", and changing the Windows power mode can change the thermal
+mode back). **Dell Optimizer must therefore stay installed.**
+
+Over the pipe, a thermal request is `thermal:<mode>` (`thermal:optimized`,
+`thermal:cool`, `thermal:quiet`, `thermal:ultra`); charge profile requests are
+unchanged.
+
+Since the mode can change outside this app (Dell Optimizer, Windows power
+mode), the menu re-reads the current one every time it opens, without
+elevation, from Dell Optimizer's
+`%ProgramData%\{DataFolderName}\DellOptimizer\TelemetrySettings.json`
+(`DataFolderName` is under `HKLM\SOFTWARE\DELL\DellOptimizer`). That's an
+internal Dell file, not a documented interface: if it can't be read, the menu
+falls back to the last mode applied by this app.
+
 ## Project structure
 
 ```
 /BatteryChargeManager
   /TrayApp                             <- C# WinForms project (.NET 8)
   Set-DellBatteryChargeProfile.ps1     <- existing script, for manual/CLI use
-  BatteryChargeHelper.ps1              <- persistent elevated helper (named pipe server)
+  BatteryChargeHelper.ps1              <- persistent elevated helper (named pipe server): charge profiles + thermal mode
   setup-scheduled-tasks.ps1            <- one-time setup script
   Get-DellBatteryChargeState.ps1       <- read-only script to check the current charge state
   README.md
@@ -127,16 +159,21 @@ Launch `TrayApp.exe` (copy it wherever you like, e.g.
 `%LOCALAPPDATA%\BatteryChargeManager\`). An icon appears in the system tray.
 Right-click for the menu:
 
-- **60-65 (minimal wear)** / **75-80** / **Standard (charges up to 100%)** /
-  **Fast charge** — applies the corresponding profile (no UAC prompt, no
-  visible window). The first switch of a session takes ~10-12s (the helper
-  is starting up); every switch after that is typically under 2 seconds.
+- **Battery charge**: **60-65 (minimal wear)** / **75-80** / **Standard
+  (charges up to 100%)** / **Fast charge** — applies the corresponding profile
+  (no UAC prompt, no visible window). The first switch of a session takes
+  ~10-12s (the helper is starting up); every switch after that is typically
+  under 2 seconds.
+- **Performance** (thermal mode): **Optimized** / **Cool** / **Quiet** / **Ultra
+  Performance** — same as picking it in Dell Optimizer. The checkmark shows
+  the mode currently set in Dell Optimizer, even if it was changed from there.
 - **Auto-start** — enables/disables the tray app starting at login (checkbox)
 - **Exit**
 
-The last successfully applied profile stays checked in the menu even after
-restarting the app or the PC — it's purely a visual indicator, **it is never
-reapplied automatically**.
+The last successfully applied charge profile stays checked in the menu even
+after restarting the app or the PC — it's purely a visual indicator, **it is
+never reapplied automatically**. The same goes for the thermal mode: nothing
+is reapplied at startup.
 
 ### Checking the current state
 
@@ -150,22 +187,36 @@ app's own state file), run, as administrator:
 It prints `PrimaryBattChargeCfg`, `CustomChargeStart`, `CustomChargeStop`, and
 which of the 4 profiles they currently match. Read-only, changes nothing.
 
+For the thermal mode, as administrator:
+
+```powershell
+& "C:\Program Files\Dell\DellOptimizer\do-cli.exe" /get -name=SystemPowerConfiguration.ThermalMode
+```
+
 ### If something goes wrong
 
 The interface is deliberately minimal: **no popups, no toast notifications**.
-If a profile switch fails (helper task not found → setup hasn't been run
-yet, connecting to the pipe timed out, or the helper rejected the request —
-BIOS path unavailable, values out of range), the detail is written to:
+If a profile or thermal mode switch fails (helper task not found → setup
+hasn't been run yet, connecting to the pipe timed out, or the helper rejected
+the request — BIOS path unavailable, values out of range, `do-cli.exe`
+missing or returning an error), the detail is written to:
 
 ```
 %APPDATA%\BatteryChargeManager\errors.log
 ```
 
-The last applied profile is stored in
+The last applied profile and thermal mode are stored in
 `%APPDATA%\BatteryChargeManager\state.json`.
 
-The detailed log the helper writes on every switch (state before/after) is
-`dell-battery-charge-log.jsonl`, next to the scripts.
+The detailed log the helper writes on every charge switch (state before/after)
+is `dell-battery-charge-log.jsonl`, next to the scripts. Every thermal switch
+(requested mode, `do-cli.exe` exit code, duration and output) goes to
+`dell-thermal-mode-log.jsonl`, in the same folder.
+
+After updating `BatteryChargeHelper.ps1`, an already-running helper keeps the
+old code until it exits: log off and back in, or end it with
+`schtasks /End /TN "\BatteryChargeManager\Helper"` (no admin needed) — the
+next click starts it again.
 
 ## Known BIOS quirk: profile switch ordering
 
@@ -183,4 +234,5 @@ lowering the range).
 - It does not modify `Set-DellBatteryChargeProfile.ps1`'s core logic.
 - It never runs the tray app itself with administrator privileges.
 - It shows no toast notifications, confirmation popups, or per-profile icons.
-- It never reapplies a profile automatically on app or PC startup.
+- It never reapplies a profile or thermal mode automatically on app or PC startup.
+- It doesn't replace Dell Optimizer: the thermal mode goes through it.

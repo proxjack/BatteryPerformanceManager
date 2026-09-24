@@ -8,13 +8,16 @@ internal sealed class AppState
     [JsonPropertyName("lastProfile")]
     public string? LastProfile { get; set; }
 
+    [JsonPropertyName("lastThermalMode")]
+    public string? LastThermalMode { get; set; }
+
     [JsonPropertyName("lastUpdatedUtc")]
     public string? LastUpdatedUtc { get; set; }
 }
 
 /// Legge/scrive %APPDATA%\BatteryChargeManager\state.json — l'unico scopo è mostrare
-/// visivamente nel menu qual è l'ultimo profilo applicato con successo. Non viene mai
-/// usato per riapplicare automaticamente un profilo all'avvio.
+/// visivamente nel menu qual è l'ultimo profilo di ricarica (e l'ultima modalità termica)
+/// applicato con successo. Non viene mai usato per riapplicare automaticamente nulla all'avvio.
 internal static class StateStore
 {
     private static readonly string AppDataDir = Path.Combine(
@@ -43,15 +46,19 @@ internal static class StateStore
         }
     }
 
-    public static void SaveLastProfile(string stateId)
+    public static void SaveLastProfile(string stateId) => Update(state => state.LastProfile = stateId);
+
+    public static void SaveLastThermalMode(string stateId) => Update(state => state.LastThermalMode = stateId);
+
+    // Legge-modifica-scrive: salvare il profilo di ricarica non deve cancellare la
+    // modalità termica salvata, e viceversa.
+    private static void Update(Action<AppState> change)
     {
         Directory.CreateDirectory(AppDataDir);
 
-        var state = new AppState
-        {
-            LastProfile = stateId,
-            LastUpdatedUtc = DateTime.UtcNow.ToString("o"),
-        };
+        AppState state = Load();
+        change(state);
+        state.LastUpdatedUtc = DateTime.UtcNow.ToString("o");
 
         string json = JsonSerializer.Serialize(state, new JsonSerializerOptions { WriteIndented = true });
         File.WriteAllText(StatePath, json);
