@@ -3,7 +3,7 @@ using Microsoft.Win32;
 
 namespace BatteryChargeManager.TrayApp;
 
-/// Colors of the tray menu and the flyout. They follow the Windows light/dark setting
+/// Colors of the tray flyout. They follow the Windows light/dark setting
 /// for system surfaces (taskbar, Start, tray flyouts) rather than the one for apps,
 /// since this UI lives next to the taskbar, and the Windows accent color, picked the
 /// way Windows 11 itself does: a darker shade of it in light mode, a lighter one in

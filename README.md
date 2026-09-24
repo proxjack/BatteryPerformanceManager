@@ -24,7 +24,7 @@ mode, through Dell Optimizer's own CLI — see [Thermal mode](#thermal-mode).
    starts on demand, and runs silently (no visible console window).
 2. **Day to day**: the tray app (`TrayApp.exe`), which runs WITHOUT admin
    privileges, talks to that helper over a local named pipe when you pick a
-   profile from the menu. The first switch of a login session starts the
+   profile in its flyout. The first switch of a login session starts the
    helper task (elevated, no UAC prompt — see below); every switch after that
    just sends a request to the already-running helper, no new process
    involved.
@@ -83,12 +83,12 @@ Over the pipe, a thermal request is `thermal:<mode>` (`thermal:optimized`,
 unchanged.
 
 Since the mode can change outside this app (Dell Optimizer, Windows power
-mode), the menu re-reads the current one every time it opens, without
+mode), the flyout re-reads the current one every time it opens, without
 elevation, from Dell Optimizer's
 `%ProgramData%\{DataFolderName}\DellOptimizer\TelemetrySettings.json`
 (`DataFolderName` is under `HKLM\SOFTWARE\DELL\DellOptimizer`). That's an
-internal Dell file, not a documented interface: if it can't be read, the menu
-falls back to the last mode applied by this app.
+internal Dell file, not a documented interface: if it can't be read, the
+flyout falls back to the last mode applied by this app.
 
 ## Project structure
 
@@ -167,17 +167,13 @@ If the helper script lives somewhere else, pass `-HelperScriptPath`:
 ## 3. Day-to-day use
 
 Launch `TrayApp.exe` (copy it wherever you like, e.g.
-`%LOCALAPPDATA%\BatteryChargeManager\`). An icon appears in the system tray:
-
-- **Left-click** opens a Windows 11 style flyout above the tray, with the
-  battery status, a tile for each charge profile and thermal mode, the
-  auto-start switch and Exit. The active tiles are filled with the Windows
-  accent color; the one being applied shows a spinner and "Applying…", and a
-  tile whose switch failed shows "Couldn't apply" for a few seconds (details
-  in `errors.log`). The flyout closes when you click anywhere else or press
-  Esc.
-- **Right-click** opens the same choices as a compact menu, where the active
-  profile and mode are marked with an accent-colored bar and icon.
+`%LOCALAPPDATA%\BatteryChargeManager\`). An icon appears in the system tray.
+Click it (left or right) to open a Windows 11 style flyout above the tray,
+with the battery status, a tile for each charge profile and thermal mode, the
+auto-start switch and Exit. The active tiles are filled with the Windows
+accent color; the one being applied shows a spinner and "Applying…", and a
+tile whose switch failed shows "Couldn't apply" for a few seconds (details in
+`errors.log`). The flyout closes when you click anywhere else or press Esc.
 
 The choices are:
 
@@ -192,8 +188,8 @@ The choices are:
 - **Auto-start** — enables/disables the tray app starting at login (switch)
 - **Exit**
 
-Both the menu and the flyout follow the Windows light/dark mode and accent
-color (Settings > Personalization > Colors), read every time they open.
+The flyout follows the Windows light/dark mode and accent color (Settings >
+Personalization > Colors), read every time it opens.
 
 The last successfully applied charge profile stays marked as active even
 after restarting the app or the PC — it's purely a visual indicator, **it is

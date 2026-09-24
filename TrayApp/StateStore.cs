@@ -16,7 +16,7 @@ internal sealed class AppState
 }
 
 /// Reads/writes %APPDATA%\BatteryChargeManager\state.json - its only purpose is to show
-/// in the menu which charge profile (and thermal mode) was last applied successfully.
+/// in the flyout which charge profile (and thermal mode) was last applied successfully.
 /// It's never used to automatically reapply anything at startup.
 internal static class StateStore
 {
@@ -41,7 +41,7 @@ internal static class StateStore
         catch
         {
             // Corrupted or unreadable state.json: not a fatal error, simply no profile
-            // will be checked in the menu until one is picked.
+            // will be marked as active until one is picked.
             return new AppState();
         }
     }

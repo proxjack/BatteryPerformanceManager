@@ -1,7 +1,7 @@
 namespace BatteryChargeManager.TrayApp;
 
 /// Local plain-text error log (no popup/toast by explicit requirement: the interface
-/// must stay minimal, just the context menu).
+/// must stay minimal, just the tray flyout).
 internal static class ErrorLog
 {
     private static readonly string AppDataDir = Path.Combine(

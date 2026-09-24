@@ -1,18 +1,15 @@
-using System.ComponentModel;
 using System.Windows.Forms;
 
 namespace BatteryChargeManager.TrayApp;
 
-/// Windowless application context: the UI is the tray icon, its right-click menu
-/// (TrayMenu) and the flyout opened by a left click (QuickFlyout). Both show the same
-/// state, kept here. No toast notifications and nothing opens on its own: the flyout
-/// only appears when the icon is clicked.
+/// Windowless application context: the UI is the tray icon and the flyout it opens
+/// when clicked (QuickFlyout), which shows the state kept here. No toast notifications
+/// and nothing opens on its own: the flyout only appears when the icon is clicked.
 internal sealed class TrayApplicationContext : ApplicationContext
 {
     private const string AppName = "Battery Charge Manager";
 
     private readonly NotifyIcon _notifyIcon;
-    private readonly TrayMenu _menu = new();
     private readonly QuickFlyout _flyout = new();
 
     private ChargeProfile? _activeProfile;
@@ -22,12 +19,6 @@ internal sealed class TrayApplicationContext : ApplicationContext
 
     public TrayApplicationContext()
     {
-        _menu.ProfileRequested += (_, profile) => ApplyProfile(profile);
-        _menu.ThermalModeRequested += (_, mode) => ApplyThermalMode(mode);
-        _menu.AutoStartToggleRequested += (_, _) => ToggleAutoStart();
-        _menu.ExitRequested += (_, _) => ExitApplication();
-        _menu.Opening += OnMenuOpening;
-
         _flyout.ProfileRequested += (_, profile) => ApplyProfile(profile);
         _flyout.ThermalModeRequested += (_, mode) => ApplyThermalMode(mode);
         _flyout.AutoStartToggleRequested += (_, _) => ToggleAutoStart();
@@ -37,7 +28,6 @@ internal sealed class TrayApplicationContext : ApplicationContext
         {
             Icon = AppIcon.Load(SystemInformation.SmallIconSize),
             Text = AppName,
-            ContextMenuStrip = _menu,
             Visible = true,
         };
         _notifyIcon.MouseClick += OnNotifyIconClick;
@@ -49,9 +39,10 @@ internal sealed class TrayApplicationContext : ApplicationContext
         UpdateViews();
     }
 
+    // Left and right click both open the flyout: it's the only UI.
     private void OnNotifyIconClick(object? sender, MouseEventArgs e)
     {
-        if (e.Button != MouseButtons.Left)
+        if (e.Button is not (MouseButtons.Left or MouseButtons.Right))
         {
             return;
         }
@@ -67,13 +58,6 @@ internal sealed class TrayApplicationContext : ApplicationContext
         RefreshThermalMode();
         UpdateViews();
         _flyout.ShowFlyout(Theme.Current);
-    }
-
-    private void OnMenuOpening(object? sender, CancelEventArgs e)
-    {
-        RefreshThermalMode();
-        UpdateViews();
-        _menu.ApplyTheme(Theme.Current);
     }
 
     private async void ApplyProfile(ChargeProfileInfo profile)
@@ -167,9 +151,7 @@ internal sealed class TrayApplicationContext : ApplicationContext
 
     private void UpdateViews()
     {
-        bool autoStart = AutoStart.IsEnabled();
-        _menu.UpdateState(_activeProfile, _activeThermalMode, autoStart);
-        _flyout.UpdateState(_activeProfile, _activeThermalMode, _busyItem, autoStart);
+        _flyout.UpdateState(_activeProfile, _activeThermalMode, _busyItem, AutoStart.IsEnabled());
 
         _notifyIcon.Text = _busyItem switch
         {
@@ -184,7 +166,6 @@ internal sealed class TrayApplicationContext : ApplicationContext
         _notifyIcon.Visible = false;
         _notifyIcon.Dispose();
         _flyout.Dispose();
-        _menu.Dispose();
         Application.Exit();
     }
 }

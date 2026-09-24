@@ -3,7 +3,7 @@ using System.Drawing.Drawing2D;
 
 namespace BatteryChargeManager.TrayApp;
 
-/// Shared Windows 11 look of the tray menu and the flyout: fonts and rounded shapes.
+/// Shared Windows 11 look of the flyout controls: fonts and rounded shapes.
 /// Sizes are given in logical pixels (as at 100% scaling) and converted for the DPI
 /// of the window they're drawn in, so text stays crisp at any display scaling.
 internal static class FluentStyle
@@ -56,14 +56,13 @@ internal static class FluentStyle
 /// its own besides the logo.
 internal static class Glyphs
 {
-    public const string Leaf = "";
-    public const string Battery8 = "";
-    public const string Battery10 = "";
-    public const string Bolt = "";
-    public const string SpeedMedium = "";
-    public const string Thermometer = "";
-    public const string Moon = "";
-    public const string SpeedHigh = "";
-    public const string Power = "";
-    public const string Close = "";
+    public const string Leaf = "\uEC0A";
+    public const string Battery8 = "\uEBA8";
+    public const string Battery10 = "\uEBAA";
+    public const string Bolt = "\uE945";
+    public const string SpeedMedium = "\uEC49";
+    public const string Thermometer = "\uE9CA";
+    public const string Moon = "\uE708";
+    public const string SpeedHigh = "\uEC4A";
+    public const string Close = "\uE711";
 }

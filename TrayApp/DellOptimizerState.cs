@@ -6,8 +6,8 @@ namespace BatteryChargeManager.TrayApp;
 /// Reads, WITHOUT elevated privileges, the thermal mode currently set in Dell
 /// Optimizer. The mode can also change outside this app (the Dell Optimizer UI, or
 /// the Windows power mode, which Dell Optimizer keeps in sync with the thermal one):
-/// reading it from here avoids showing a checkmark in the menu that's no longer
-/// true. do-cli.exe requires administrator rights, so this uses
+/// reading it from here avoids marking a mode as active in the flyout when it no
+/// longer is. do-cli.exe requires administrator rights, so this uses
 /// %ProgramData%\{DataFolderName}\DellOptimizer\TelemetrySettings.json instead,
 /// which every user can read and Dell Optimizer updates on every change.
 ///

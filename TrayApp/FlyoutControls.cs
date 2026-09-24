@@ -291,8 +291,7 @@ internal sealed class ToggleSwitch : FlyoutControl
         ? 0
         : TextRenderer.MeasureText(Text, LabelFont, Size.Empty, TextFormatFlags.NoPadding).Width + (int)S(8 + 12 + 40 + 8);
 
-    /// Draws the switch in the given track rectangle; shared with the tray menu.
-    public static void DrawSwitch(Graphics g, RectangleF track, bool isOn, bool hovered, Theme theme, int dpi)
+    private static void DrawSwitch(Graphics g, RectangleF track, bool isOn, bool hovered, Theme theme, int dpi)
     {
         float S(float logical) => logical * dpi / 96f;
         using GraphicsPath path = FluentStyle.RoundedRect(track, track.Height / 2);

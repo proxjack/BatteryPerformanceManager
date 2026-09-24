@@ -16,7 +16,6 @@ internal static class NativeMethods
         Default = 0,
         DoNotRound = 1,
         Round = 2,
-        RoundSmall = 3,
     }
 
     public static bool IsWindows11OrLater => Environment.OSVersion.Version.Build >= 22000;
