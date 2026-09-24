@@ -2,6 +2,9 @@
 [Bb]in/
 [Oo]bj/
 
+# Release zips built by installer/build-release.ps1
+dist/
+
 # Runtime log written by the charge scripts (state before/after every switch)
 dell-battery-charge-log.jsonl
 

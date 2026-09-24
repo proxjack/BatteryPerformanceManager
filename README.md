@@ -2,22 +2,134 @@
 
 # Battery and Performance Manager
 
-A Windows tray app that switches the Dell XPS 14 battery charge profile and
-the Dell Optimizer thermal mode (Optimized / Cool / Quiet / Ultra Performance)
-with a single click from the system tray — no UAC prompts, and the tray app
-itself never runs as administrator.
+A Windows tray app for Dell laptops that switches the battery charge profile
+and the Dell Optimizer thermal mode (Optimized / Cool / Quiet / Ultra
+Performance) with a single click from the system tray — no UAC prompts, and
+the tray app itself never runs as administrator.
 
-It relies on the existing, hand-tested PowerShell script
-[`Set-DellBatteryChargeProfile.ps1`](Set-DellBatteryChargeProfile.ps1), which
-talks to the BIOS through the `DellBIOSProvider` module, and on a persistent
-elevated helper ([`BatteryPerformanceHelper.ps1`](BatteryPerformanceHelper.ps1)) that
-applies the same logic without the per-click elevation cost — see
-[Architecture](#architecture) below. The same helper also sets the thermal
-mode, through Dell Optimizer's own CLI — see [Thermal mode](#thermal-mode).
+It talks to the BIOS through Dell's `DellBIOSProvider` PowerShell module and
+to Dell Optimizer through its own CLI, via a persistent elevated helper
+([`BatteryPerformanceHelper.ps1`](BatteryPerformanceHelper.ps1)) that avoids
+the per-click elevation cost — see [Architecture](#architecture) and
+[Thermal mode](#thermal-mode) below. Developed and tested on a Dell XPS 14.
+
+## Install
+
+**Requirements**
+
+- A Dell laptop whose BIOS supports custom battery charge settings
+- [Dell Optimizer](https://www.dell.com/support) installed, for the
+  Performance (thermal mode) choices
+- Windows 10 or 11, 64-bit, with your account in the local Administrators group
+
+**Steps**
+
+1. Download `BatteryPerformanceManager-<version>-win-x64.zip` from the
+   [latest release](https://github.com/proxjack/BatteryPerformanceManager/releases/latest).
+2. Extract the whole zip (right-click > *Extract All…*).
+3. Double-click `Install.cmd` and confirm the administrator prompt. The app
+   isn't code-signed, so Windows may warn you first: choose *More info* >
+   *Run anyway* (SmartScreen) or *Run* (security warning).
+4. Click the new icon in the system tray, next to the clock.
+
+The installer ([`installer/Install.ps1`](installer/Install.ps1)):
+
+- copies the app to `C:\Program Files\Battery and Performance Manager` — a
+  folder only administrators can change, which matters because the helper
+  script there runs elevated without a UAC prompt;
+- installs the `DellBIOSProvider` module from the PowerShell Gallery if it's
+  missing, and warns if the BIOS or Dell Optimizer can't be used;
+- registers the elevated helper task (`\BatteryPerformanceManager\Helper`);
+- adds a Start menu shortcut, an entry in *Settings > Apps* and auto-start at
+  login (you can turn it off in the app), then starts the app.
+
+Running `Install.cmd` from a newer release upgrades an existing installation
+in place.
+
+**Uninstall** from *Settings > Apps > Installed apps > Battery and
+Performance Manager*, or double-click `Uninstall.cmd` in the program folder.
+It removes the app, the helper task, the shortcut and auto-start; it leaves
+your settings folder (`%APPDATA%\BatteryPerformanceManager`), the
+`DellBIOSProvider` module and the current charge/thermal settings as they are.
+
+## Using it
+
+Click the tray icon (left or right) to open a Windows 11 style flyout above
+the tray, with the battery status, a tile for each charge profile and
+thermal mode, the auto-start switch and Exit. The active tiles are filled
+with the Windows accent color; the one being applied shows a spinner and
+"Applying…", and a tile whose switch failed shows "Couldn't apply" for a few
+seconds (details in `errors.log`). The flyout closes when you click anywhere
+else or press Esc.
+
+The choices are:
+
+- **Battery charge**: **60-65** (minimal wear) / **75-80** (low wear) /
+  **Standard** (charges up to 100%) / **Fast charge** (ExpressCharge) —
+  applies the corresponding profile (no UAC prompt, no visible window). The
+  first switch of a session takes ~10-12s (the helper is starting up); every
+  switch after that is typically under 2 seconds.
+- **Performance** (thermal mode): **Optimized** / **Cool** / **Quiet** / **Ultra
+  Performance** — same as picking it in Dell Optimizer. The active one is the
+  mode currently set in Dell Optimizer, even if it was changed from there.
+- **Auto-start** — enables/disables the tray app starting at login (switch)
+- **Exit**
+
+The flyout follows the Windows light/dark mode and accent color (Settings >
+Personalization > Colors), read every time it opens.
+
+The last successfully applied charge profile stays marked as active even
+after restarting the app or the PC — it's purely a visual indicator, **it is
+never reapplied automatically**. The same goes for the thermal mode: nothing
+is reapplied at startup.
+
+### Checking the current state
+
+To verify what's actually set on the BIOS right now (independent of the tray
+app's own state file), run, as administrator, from the program folder:
+
+```powershell
+.\Get-DellBatteryChargeState.ps1
+```
+
+It prints `PrimaryBattChargeCfg`, `CustomChargeStart`, `CustomChargeStop`, and
+which of the 4 profiles they currently match. Read-only, changes nothing.
+
+For the thermal mode, as administrator:
+
+```powershell
+& "C:\Program Files\Dell\DellOptimizer\do-cli.exe" /get -name=SystemPowerConfiguration.ThermalMode
+```
+
+### If something goes wrong
+
+The interface is deliberately minimal: **no popups, no toast notifications**.
+If a profile or thermal mode switch fails (helper task not found → setup
+hasn't been run yet, connecting to the pipe timed out, or the helper rejected
+the request — BIOS path unavailable, values out of range, `do-cli.exe`
+missing or returning an error), the detail is written to:
+
+```
+%APPDATA%\BatteryPerformanceManager\errors.log
+```
+
+The last applied profile and thermal mode are stored in
+`%APPDATA%\BatteryPerformanceManager\state.json`.
+
+The detailed log the helper writes on every charge switch (state before/after)
+is `dell-battery-charge-log.jsonl`, next to the helper script (in the program
+folder, for an installed copy). Every thermal switch (requested mode,
+`do-cli.exe` exit code, duration and output) goes to
+`dell-thermal-mode-log.jsonl`, in the same folder.
+
+After updating `BatteryPerformanceHelper.ps1`, an already-running helper keeps the
+old code until it exits: log off and back in, or end it with
+`schtasks /End /TN "\BatteryPerformanceManager\Helper"` (no admin needed) — the
+next click starts it again. The installer does this for you.
 
 ## How it works (short version)
 
-1. **One-time setup**, as administrator:
+1. **One-time setup**, as administrator (done by the installer):
    [`setup-scheduled-tasks.ps1`](setup-scheduled-tasks.ps1) creates a single
    Windows Scheduled Task (`\BatteryPerformanceManager\Helper`), configured to run
    with the highest privileges but with **no automatic trigger** — it only
@@ -58,7 +170,8 @@ Scheduler service (running as SYSTEM) creates the process with the user's
 elevated token directly. It doesn't go through the interactive
 AppInfo/consent-prompt path that triggers when a user manually elevates a
 program. This only works because the current user is actually a member of
-the local Administrators group.
+the local Administrators group — and it's why the helper script must live in
+a folder standard processes can't write to (the installer uses Program Files).
 
 ## Thermal mode
 
@@ -90,20 +203,44 @@ elevation, from Dell Optimizer's
 internal Dell file, not a documented interface: if it can't be read, the
 flyout falls back to the last mode applied by this app.
 
-## Project structure
+## Known BIOS quirk: profile switch ordering
+
+The DellBIOSProvider validates each write to `CustomChargeStart` /
+`CustomChargeStop` against the *current* value of the other bound, not the
+final pair — so moving from a lower custom range to a higher one (e.g.
+60-65 → 75-80) fails if `Start` is written before `Stop` is raised. Both
+`Set-DellBatteryChargeProfile.ps1` and `BatteryPerformanceHelper.ps1` handle this
+by writing `Stop` first, then `Start`, and retrying with the opposite order
+if the first attempt fails — this covers both directions (raising or
+lowering the range).
+
+## What this app does NOT do
+
+- It never runs the tray app itself with administrator privileges.
+- It shows no toast notifications, confirmation popups, or per-profile icons,
+  and never opens a window on its own: the flyout only appears when you click
+  the tray icon.
+- It never reapplies a profile or thermal mode automatically on app or PC startup.
+- It doesn't replace Dell Optimizer: the thermal mode goes through it.
+
+## Building from source
+
+### Project structure
 
 ```
 /BatteryPerformanceManager
   /TrayApp                             <- C# WinForms project (.NET 8)
   /assets                              <- logo SVGs and the script that builds TrayApp/app.ico
-  Set-DellBatteryChargeProfile.ps1     <- existing script, for manual/CLI use
-  BatteryPerformanceHelper.ps1              <- persistent elevated helper (named pipe server): charge profiles + thermal mode
-  setup-scheduled-tasks.ps1            <- one-time setup script
+  /installer                           <- Install/Uninstall scripts and the release build script
+  BatteryPerformanceHelper.ps1         <- persistent elevated helper (named pipe server): charge profiles + thermal mode
+  setup-scheduled-tasks.ps1            <- one-time setup script (registers the helper task)
+  Set-DellBatteryChargeProfile.ps1     <- applies a charge profile from the command line, for manual use
   Get-DellBatteryChargeState.ps1       <- read-only script to check the current charge state
+  LICENSE
   README.md
 ```
 
-## 1. Build the tray app
+### 1. Build the tray app
 
 Requires the .NET 8 SDK (not just the runtime). Check with:
 
@@ -135,17 +272,10 @@ version pinned in `TrayApp.csproj`, bump it to the latest available version:
 dotnet add TrayApp.csproj package TaskScheduler
 ```
 
-### Changing the icon
+### 2. One-time setup of a development checkout (as administrator)
 
-The tray icon (`TrayApp/app.ico`) is committed, so this is only needed if you
-change the logo: edit `assets/logo.svg` (32 px and up) and/or
-`assets/logo-small.svg` (16-24 px, simplified so it stays readable in the
-tray), then run `python assets/build-icon.py` (needs Microsoft Edge and Python
-with Pillow) and rebuild the tray app.
-
-## 2. One-time setup (as administrator)
-
-Open PowerShell **as administrator** and run:
+To run the app straight from the checkout instead of installing it, open
+PowerShell **as administrator** and run:
 
 ```powershell
 cd "BatteryPerformanceManager"
@@ -159,16 +289,9 @@ tasks left over from previous versions of this app (the `\BatteryChargeManager\`
 folder of the old name, including the old one-task-per-profile layout),
 instead of duplicating or leaving stale ones around.
 
-### Upgrading from Battery Charge Manager
-
-The app used to be called Battery Charge Manager. After updating, run
-`setup-scheduled-tasks.ps1` once more as administrator: the helper task moved
-to `\BatteryPerformanceManager\Helper` and the helper script was renamed to
-`BatteryPerformanceHelper.ps1`. Everything else carries over on its own the
-first time the new `BatteryPerformanceManager.exe` starts: the
-`%APPDATA%\BatteryChargeManager` folder (last applied profile, error log) is
-moved to `%APPDATA%\BatteryPerformanceManager`, and an auto-start entry of the
-old name is replaced by one for the new executable.
+Keep in mind that the task then runs the helper script from the checkout
+folder with administrator rights: that's fine on your own machine, but for
+everyday use the installer is the safer choice.
 
 If the helper script lives somewhere else, pass `-HelperScriptPath`:
 
@@ -176,106 +299,38 @@ If the helper script lives somewhere else, pass `-HelperScriptPath`:
 .\setup-scheduled-tasks.ps1 -HelperScriptPath "D:\some\other\path\BatteryPerformanceHelper.ps1"
 ```
 
-## 3. Day-to-day use
+### Upgrading from Battery Charge Manager
 
-Launch `BatteryPerformanceManager.exe` (copy it wherever you like, e.g.
-`%LOCALAPPDATA%\BatteryPerformanceManager\`). An icon appears in the system tray.
-Click it (left or right) to open a Windows 11 style flyout above the tray,
-with the battery status, a tile for each charge profile and thermal mode, the
-auto-start switch and Exit. The active tiles are filled with the Windows
-accent color; the one being applied shows a spinner and "Applying…", and a
-tile whose switch failed shows "Couldn't apply" for a few seconds (details in
-`errors.log`). The flyout closes when you click anywhere else or press Esc.
+The app used to be called Battery Charge Manager. After updating a checkout,
+run `setup-scheduled-tasks.ps1` once more as administrator (or just use the
+installer): the helper task moved to `\BatteryPerformanceManager\Helper` and
+the helper script was renamed to `BatteryPerformanceHelper.ps1`. Everything
+else carries over on its own the first time the new
+`BatteryPerformanceManager.exe` starts: the `%APPDATA%\BatteryChargeManager`
+folder (last applied profile, error log) is moved to
+`%APPDATA%\BatteryPerformanceManager`, and an auto-start entry of the old
+name is replaced by one for the new executable.
 
-The choices are:
+### Changing the icon
 
-- **Battery charge**: **60-65** (minimal wear) / **75-80** (low wear) /
-  **Standard** (charges up to 100%) / **Fast charge** (ExpressCharge) —
-  applies the corresponding profile (no UAC prompt, no visible window). The
-  first switch of a session takes ~10-12s (the helper is starting up); every
-  switch after that is typically under 2 seconds.
-- **Performance** (thermal mode): **Optimized** / **Cool** / **Quiet** / **Ultra
-  Performance** — same as picking it in Dell Optimizer. The active one is the
-  mode currently set in Dell Optimizer, even if it was changed from there.
-- **Auto-start** — enables/disables the tray app starting at login (switch)
-- **Exit**
+The tray icon (`TrayApp/app.ico`) is committed, so this is only needed if you
+change the logo: edit `assets/logo.svg` (32 px and up) and/or
+`assets/logo-small.svg` (16-24 px, simplified so it stays readable in the
+tray), then run `python assets/build-icon.py` (needs Microsoft Edge and Python
+with Pillow) and rebuild the tray app.
 
-The flyout follows the Windows light/dark mode and accent color (Settings >
-Personalization > Colors), read every time it opens.
+### Building a release
 
-The last successfully applied charge profile stays marked as active even
-after restarting the app or the PC — it's purely a visual indicator, **it is
-never reapplied automatically**. The same goes for the thermal mode: nothing
-is reapplied at startup.
-
-### Checking the current state
-
-To verify what's actually set on the BIOS right now (independent of the tray
-app's own state file), run, as administrator:
+Bump `<Version>` in `TrayApp/TrayApp.csproj`, then:
 
 ```powershell
-.\Get-DellBatteryChargeState.ps1
+.\installer\build-release.ps1
 ```
 
-It prints `PrimaryBattChargeCfg`, `CustomChargeStart`, `CustomChargeStop`, and
-which of the 4 profiles they currently match. Read-only, changes nothing.
-
-For the thermal mode, as administrator:
-
-```powershell
-& "C:\Program Files\Dell\DellOptimizer\do-cli.exe" /get -name=SystemPowerConfiguration.ThermalMode
-```
-
-### If something goes wrong
-
-The interface is deliberately minimal: **no popups, no toast notifications**.
-If a profile or thermal mode switch fails (helper task not found → setup
-hasn't been run yet, connecting to the pipe timed out, or the helper rejected
-the request — BIOS path unavailable, values out of range, `do-cli.exe`
-missing or returning an error), the detail is written to:
-
-```
-%APPDATA%\BatteryPerformanceManager\errors.log
-```
-
-The last applied profile and thermal mode are stored in
-`%APPDATA%\BatteryPerformanceManager\state.json`.
-
-The detailed log the helper writes on every charge switch (state before/after)
-is `dell-battery-charge-log.jsonl`, next to the scripts. Every thermal switch
-(requested mode, `do-cli.exe` exit code, duration and output) goes to
-`dell-thermal-mode-log.jsonl`, in the same folder.
-
-After updating `BatteryPerformanceHelper.ps1`, an already-running helper keeps the
-old code until it exits: log off and back in, or end it with
-`schtasks /End /TN "\BatteryPerformanceManager\Helper"` (no admin needed) — the
-next click starts it again.
-
-## Known BIOS quirk: profile switch ordering
-
-The DellBIOSProvider validates each write to `CustomChargeStart` /
-`CustomChargeStop` against the *current* value of the other bound, not the
-final pair — so moving from a lower custom range to a higher one (e.g.
-60-65 → 75-80) fails if `Start` is written before `Stop` is raised. Both
-`Set-DellBatteryChargeProfile.ps1` and `BatteryPerformanceHelper.ps1` handle this
-by writing `Stop` first, then `Start`, and retrying with the opposite order
-if the first attempt fails — this covers both directions (raising or
-lowering the range).
-
-## What this app does NOT do
-
-- It does not modify `Set-DellBatteryChargeProfile.ps1`'s core logic.
-- It never runs the tray app itself with administrator privileges.
-- It shows no toast notifications, confirmation popups, or per-profile icons,
-  and never opens a window on its own: the flyout only appears when you click
-  the tray icon.
-- It never reapplies a profile or thermal mode automatically on app or PC startup.
-- It doesn't replace Dell Optimizer: the thermal mode goes through it.
+It publishes the app and packs it with the helper, the scripts and the
+installer into `dist\BatteryPerformanceManager-<version>-win-x64.zip`, ready
+to attach to a GitHub release.
 
 ## License
 
-Copyright © 2026 Jacopo Garau. All rights reserved.
-
-This source code is published for reference only. No permission is granted to
-use, copy, modify, or distribute it, in whole or in part, without the prior
-written consent of the author.
+[MIT](LICENSE) — Copyright (c) 2026 Jacopo Garau.
