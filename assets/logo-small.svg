@@ -1,5 +1,5 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="256" height="256" viewBox="0 0 64 64">
-  <title>Battery Charge Manager (small sizes)</title>
+  <title>Battery and Performance Manager (small sizes)</title>
   <!-- Same design as logo.svg, simplified for 16-24 px: two thicker pins per side and a bigger bolt, so it stays readable in the tray. -->
   <g stroke="#1D9E75" stroke-linecap="round" fill="none">
     <rect x="13" y="13" width="38" height="38" rx="7" stroke-width="7"/>

@@ -12,6 +12,12 @@
     <AssemblyName>TrayApp</AssemblyName>
     <RootNamespace>BatteryChargeManager.TrayApp</RootNamespace>
 
+    <!-- Shown in Task Manager and in the executable's Properties > Details. -->
+    <Product>Battery and Performance Manager</Product>
+    <AssemblyTitle>Battery and Performance Manager</AssemblyTitle>
+    <Authors>Jacopo Garau</Authors>
+    <Copyright>Copyright © 2026 Jacopo Garau. All rights reserved.</Copyright>
+
     <!-- Standalone publish: no dependency on .NET being installed on the user's PC. -->
     <SelfContained>true</SelfContained>
     <RuntimeIdentifier>win-x64</RuntimeIdentifier>

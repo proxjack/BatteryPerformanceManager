@@ -7,7 +7,7 @@ namespace BatteryChargeManager.TrayApp;
 /// and nothing opens on its own: the flyout only appears when the icon is clicked.
 internal sealed class TrayApplicationContext : ApplicationContext
 {
-    private const string AppName = "Battery Charge Manager";
+    private const string AppName = "Battery and Performance Manager";
 
     private readonly NotifyIcon _notifyIcon;
     private readonly QuickFlyout _flyout = new();

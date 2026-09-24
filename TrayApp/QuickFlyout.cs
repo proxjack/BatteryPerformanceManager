@@ -9,7 +9,7 @@ namespace BatteryChargeManager.TrayApp;
 /// while a switch is being applied.
 internal sealed class QuickFlyout : Form
 {
-    private const string AppName = "Battery Charge Manager";
+    private const string AppName = "Battery and Performance Manager";
     private const int LogicalWidth = 360;
     private const int LogicalPadding = 16;
     private const int LogicalLogoSize = 28;

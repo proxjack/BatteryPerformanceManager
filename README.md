@@ -1,6 +1,6 @@
-<p align="center"><img src="assets/logo.svg" width="128" alt="Battery Charge Manager logo"></p>
+<p align="center"><img src="assets/logo.svg" width="128" alt="Battery and Performance Manager logo"></p>
 
-# Battery Charge Manager
+# Battery and Performance Manager
 
 A Windows tray app that switches the Dell XPS 14 battery charge profile and
 the Dell Optimizer thermal mode (Optimized / Cool / Quiet / Ultra Performance)

@@ -1,5 +1,5 @@
 <#
-One-time setup for Battery Charge Manager.
+One-time setup for Battery and Performance Manager.
 
 Creates ONE Scheduled Task ('\BatteryChargeManager\Helper') configured to run
 with the highest privileges ("RunLevel = Highest") but WITHOUT any automatic

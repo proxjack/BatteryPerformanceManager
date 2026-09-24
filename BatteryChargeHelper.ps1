@@ -1,5 +1,5 @@
 <#
-Persistent elevated helper for Battery Charge Manager.
+Persistent elevated helper for Battery and Performance Manager.
 
 Why it exists: launching a NEW elevated PowerShell process on every profile
 switch (what the previous approach did, one Scheduled Task per profile) costs
