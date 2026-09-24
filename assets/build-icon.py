@@ -87,7 +87,7 @@ def render(edge: pathlib.Path, svg: pathlib.Path, work_dir: pathlib.Path) -> Ima
 
 def main() -> None:
     edge = find_edge()
-    work_dir = pathlib.Path(tempfile.mkdtemp(prefix="bcm-icon-"))
+    work_dir = pathlib.Path(tempfile.mkdtemp(prefix="bpm-icon-"))
     try:
         small = render(edge, HERE / "logo-small.svg", work_dir)
         large = render(edge, HERE / "logo.svg", work_dir)

@@ -5,7 +5,7 @@
 # Runtime log written by the charge scripts (state before/after every switch)
 dell-battery-charge-log.jsonl
 
-# Runtime log of thermal mode switches (BatteryChargeHelper.ps1 -> do-cli.exe)
+# Runtime log of thermal mode switches (BatteryPerformanceHelper.ps1 -> do-cli.exe)
 dell-thermal-mode-log.jsonl
 
 # Visual Studio / Rider

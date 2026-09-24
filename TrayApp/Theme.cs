@@ -1,7 +1,7 @@
 using System.Drawing;
 using Microsoft.Win32;
 
-namespace BatteryChargeManager.TrayApp;
+namespace BatteryPerformanceManager.TrayApp;
 
 /// Colors of the tray flyout. They follow the Windows light/dark setting
 /// for system surfaces (taskbar, Start, tray flyouts) rather than the one for apps,

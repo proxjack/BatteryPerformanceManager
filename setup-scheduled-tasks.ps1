@@ -1,7 +1,7 @@
 <#
 One-time setup for Battery and Performance Manager.
 
-Creates ONE Scheduled Task ('\BatteryChargeManager\Helper') configured to run
+Creates ONE Scheduled Task ('\BatteryPerformanceManager\Helper') configured to run
 with the highest privileges ("RunLevel = Highest") but WITHOUT any automatic
 trigger: it only starts on demand (Start-ScheduledTask / Task.Run() via COM),
 the first time you pick a profile or thermal mode from the tray app. From then
@@ -31,7 +31,7 @@ duplicating it or failing.
 param(
     # Path to the helper script the task runs (don't change it).
     # By default it's assumed to be in the same folder as this setup script.
-    [string]$HelperScriptPath = (Join-Path $PSScriptRoot 'BatteryChargeHelper.ps1')
+    [string]$HelperScriptPath = (Join-Path $PSScriptRoot 'BatteryPerformanceHelper.ps1')
 )
 
 $ErrorActionPreference = 'Stop'
@@ -48,12 +48,12 @@ if (-not (Test-IsAdministrator)) {
 }
 
 if (-not (Test-Path $HelperScriptPath)) {
-    Write-Error "Script not found: '$HelperScriptPath'. Pass the correct path with -HelperScriptPath, e.g.: .\setup-scheduled-tasks.ps1 -HelperScriptPath 'C:\path\to\BatteryChargeHelper.ps1'"
+    Write-Error "Script not found: '$HelperScriptPath'. Pass the correct path with -HelperScriptPath, e.g.: .\setup-scheduled-tasks.ps1 -HelperScriptPath 'C:\path\to\BatteryPerformanceHelper.ps1'"
     exit 1
 }
 $HelperScriptPath = (Resolve-Path $HelperScriptPath).Path
 
-$taskFolderPath = '\BatteryChargeManager\'
+$taskFolderPath = '\BatteryPerformanceManager\'
 $taskName = 'Helper'
 $currentUser = "$env:USERDOMAIN\$env:USERNAME"
 
@@ -62,14 +62,22 @@ Write-Host "Task owner: $currentUser"
 Write-Host "Creating/updating task in '$taskFolderPath'..." -ForegroundColor Cyan
 Write-Host ""
 
-# Remove any tasks left over from a previous architecture (one per profile:
-# 60_65/75_80/Standard/FastCharge), so the '\BatteryChargeManager\' folder
-# always contains only the current task.
-$obsolete = Get-ScheduledTask -TaskPath $taskFolderPath -ErrorAction SilentlyContinue |
-    Where-Object { $_.TaskName -ne $taskName }
-foreach ($task in $obsolete) {
-    Write-Host "Removing obsolete task: $taskFolderPath$($task.TaskName)" -ForegroundColor DarkYellow
-    Unregister-ScheduledTask -TaskName $task.TaskName -TaskPath $taskFolderPath -Confirm:$false
+# The app was renamed from Battery Charge Manager: remove the tasks it left in
+# '\BatteryChargeManager\' (its Helper, or the one-task-per-profile layout of an
+# even older version) and the folder itself, so only the current task remains.
+$legacyFolderPath = '\BatteryChargeManager\'
+$legacyTasks = Get-ScheduledTask -TaskPath $legacyFolderPath -ErrorAction SilentlyContinue
+foreach ($task in $legacyTasks) {
+    Write-Host "Removing task left by the old app name: $legacyFolderPath$($task.TaskName)" -ForegroundColor DarkYellow
+    Stop-ScheduledTask -TaskName $task.TaskName -TaskPath $legacyFolderPath -ErrorAction SilentlyContinue
+    Unregister-ScheduledTask -TaskName $task.TaskName -TaskPath $legacyFolderPath -Confirm:$false
+}
+try {
+    $scheduler = New-Object -ComObject Schedule.Service
+    $scheduler.Connect()
+    $scheduler.GetFolder('\').DeleteFolder('BatteryChargeManager', 0)
+} catch {
+    # No such folder (fresh install): nothing to clean up.
 }
 
 # Idempotency: remove the existing task (if any) before recreating it, so any
@@ -110,7 +118,7 @@ $result | Format-Table -AutoSize | Out-String | Write-Host
 
 if ($result.Result -eq 'OK') {
     Write-Host "Setup complete: task '$taskFolderPath$taskName' created successfully." -ForegroundColor Green
-    Write-Host "You can now start TrayApp.exe without administrator privileges: on the first switch, the elevated helper will start in the background (no UAC prompt) and stay active for the rest of the session."
+    Write-Host "You can now start BatteryPerformanceManager.exe without administrator privileges: on the first switch, the elevated helper will start in the background (no UAC prompt) and stay active for the rest of the session."
 } else {
     Write-Warning "Setup failed. Check the message above."
     exit 1

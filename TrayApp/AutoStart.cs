@@ -1,6 +1,6 @@
 using Microsoft.Win32;
 
-namespace BatteryChargeManager.TrayApp;
+namespace BatteryPerformanceManager.TrayApp;
 
 /// Handles auto-start at login through the per-user key
 /// HKEY_CURRENT_USER\...\Run (NOT the system Startup folder, NOT HKLM):
@@ -9,7 +9,11 @@ namespace BatteryChargeManager.TrayApp;
 internal static class AutoStart
 {
     private const string RunKeyPath = @"Software\Microsoft\Windows\CurrentVersion\Run";
-    private const string ValueName = "BatteryChargeManagerTrayApp";
+    private const string ValueName = "BatteryPerformanceManager";
+
+    // Value name used before the app was renamed from Battery Charge Manager; it
+    // points at the old TrayApp.exe.
+    private const string LegacyValueName = "BatteryChargeManagerTrayApp";
 
     public static bool IsEnabled()
     {
@@ -30,6 +34,20 @@ internal static class AutoStart
     {
         using RegistryKey? key = Registry.CurrentUser.OpenSubKey(RunKeyPath, writable: true);
         key?.DeleteValue(ValueName, throwOnMissingValue: false);
+    }
+
+    /// Replaces an auto-start entry left by the old name with one for this executable,
+    /// so auto-start stays on across the rename.
+    public static void MigrateLegacyEntry()
+    {
+        using RegistryKey? key = Registry.CurrentUser.OpenSubKey(RunKeyPath, writable: true);
+        if (key?.GetValue(LegacyValueName) is null)
+        {
+            return;
+        }
+
+        key.DeleteValue(LegacyValueName, throwOnMissingValue: false);
+        Enable();
     }
 
     public static void Toggle()

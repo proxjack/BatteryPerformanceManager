@@ -10,7 +10,7 @@ itself never runs as administrator.
 It relies on the existing, hand-tested PowerShell script
 [`Set-DellBatteryChargeProfile.ps1`](Set-DellBatteryChargeProfile.ps1), which
 talks to the BIOS through the `DellBIOSProvider` module, and on a persistent
-elevated helper ([`BatteryChargeHelper.ps1`](BatteryChargeHelper.ps1)) that
+elevated helper ([`BatteryPerformanceHelper.ps1`](BatteryPerformanceHelper.ps1)) that
 applies the same logic without the per-click elevation cost — see
 [Architecture](#architecture) below. The same helper also sets the thermal
 mode, through Dell Optimizer's own CLI — see [Thermal mode](#thermal-mode).
@@ -19,10 +19,10 @@ mode, through Dell Optimizer's own CLI — see [Thermal mode](#thermal-mode).
 
 1. **One-time setup**, as administrator:
    [`setup-scheduled-tasks.ps1`](setup-scheduled-tasks.ps1) creates a single
-   Windows Scheduled Task (`\BatteryChargeManager\Helper`), configured to run
+   Windows Scheduled Task (`\BatteryPerformanceManager\Helper`), configured to run
    with the highest privileges but with **no automatic trigger** — it only
    starts on demand, and runs silently (no visible console window).
-2. **Day to day**: the tray app (`TrayApp.exe`), which runs WITHOUT admin
+2. **Day to day**: the tray app (`BatteryPerformanceManager.exe`), which runs WITHOUT admin
    privileges, talks to that helper over a local named pipe when you pick a
    profile in its flyout. The first switch of a login session starts the
    helper task (elevated, no UAC prompt — see below); every switch after that
@@ -41,9 +41,9 @@ to be independent of the Scheduled Task mechanism itself: manually elevating
 the same command with `Start-Process -Verb RunAs` measured the same ~12s.
 
 The fix: instead of a fresh process per click, a single persistent elevated
-helper (`BatteryChargeHelper.ps1`) is started once — on the first profile
+helper (`BatteryPerformanceHelper.ps1`) is started once — on the first profile
 switch of a login session — and stays running in the background, listening
-on a named pipe (`BatteryChargeManagerHelper`, ACL-restricted to the current
+on a named pipe (`BatteryPerformanceManagerHelper`, ACL-restricted to the current
 user's SID so no other local account/process can send it commands). It
 imports `DellBIOSProvider` once and keeps the `DellSmbios:` drive mounted, so
 every subsequent switch is just a round-trip over the pipe — typically under
@@ -93,11 +93,11 @@ flyout falls back to the last mode applied by this app.
 ## Project structure
 
 ```
-/BatteryChargeManager
+/BatteryPerformanceManager
   /TrayApp                             <- C# WinForms project (.NET 8)
   /assets                              <- logo SVGs and the script that builds TrayApp/app.ico
   Set-DellBatteryChargeProfile.ps1     <- existing script, for manual/CLI use
-  BatteryChargeHelper.ps1              <- persistent elevated helper (named pipe server): charge profiles + thermal mode
+  BatteryPerformanceHelper.ps1              <- persistent elevated helper (named pipe server): charge profiles + thermal mode
   setup-scheduled-tasks.ps1            <- one-time setup script
   Get-DellBatteryChargeState.ps1       <- read-only script to check the current charge state
   README.md
@@ -125,7 +125,7 @@ The standalone executable (single-file, no .NET dependency to install for the
 end user) is produced at:
 
 ```
-TrayApp\bin\Release\net8.0-windows\win-x64\publish\TrayApp.exe
+TrayApp\bin\Release\net8.0-windows\win-x64\publish\BatteryPerformanceManager.exe
 ```
 
 If `dotnet restore` fails to resolve the `TaskScheduler` NuGet package at the
@@ -148,26 +148,38 @@ with Pillow) and rebuild the tray app.
 Open PowerShell **as administrator** and run:
 
 ```powershell
-cd "BatteryChargeManager"
+cd "BatteryPerformanceManager"
 .\setup-scheduled-tasks.ps1
 ```
 
-The script creates the `\BatteryChargeManager\Helper` Scheduled Task, pointing
-at `BatteryChargeHelper.ps1`. It's idempotent: rerunning it is safe (e.g.
+The script creates the `\BatteryPerformanceManager\Helper` Scheduled Task, pointing
+at `BatteryPerformanceHelper.ps1`. It's idempotent: rerunning it is safe (e.g.
 after moving the project folder) — it recreates the task and removes any
-tasks left over from a previous version of this app (the old one-task-per-
-profile layout), instead of duplicating or leaving stale ones around.
+tasks left over from previous versions of this app (the `\BatteryChargeManager\`
+folder of the old name, including the old one-task-per-profile layout),
+instead of duplicating or leaving stale ones around.
+
+### Upgrading from Battery Charge Manager
+
+The app used to be called Battery Charge Manager. After updating, run
+`setup-scheduled-tasks.ps1` once more as administrator: the helper task moved
+to `\BatteryPerformanceManager\Helper` and the helper script was renamed to
+`BatteryPerformanceHelper.ps1`. Everything else carries over on its own the
+first time the new `BatteryPerformanceManager.exe` starts: the
+`%APPDATA%\BatteryChargeManager` folder (last applied profile, error log) is
+moved to `%APPDATA%\BatteryPerformanceManager`, and an auto-start entry of the
+old name is replaced by one for the new executable.
 
 If the helper script lives somewhere else, pass `-HelperScriptPath`:
 
 ```powershell
-.\setup-scheduled-tasks.ps1 -HelperScriptPath "D:\some\other\path\BatteryChargeHelper.ps1"
+.\setup-scheduled-tasks.ps1 -HelperScriptPath "D:\some\other\path\BatteryPerformanceHelper.ps1"
 ```
 
 ## 3. Day-to-day use
 
-Launch `TrayApp.exe` (copy it wherever you like, e.g.
-`%LOCALAPPDATA%\BatteryChargeManager\`). An icon appears in the system tray.
+Launch `BatteryPerformanceManager.exe` (copy it wherever you like, e.g.
+`%LOCALAPPDATA%\BatteryPerformanceManager\`). An icon appears in the system tray.
 Click it (left or right) to open a Windows 11 style flyout above the tray,
 with the battery status, a tile for each charge profile and thermal mode, the
 auto-start switch and Exit. The active tiles are filled with the Windows
@@ -223,20 +235,20 @@ the request — BIOS path unavailable, values out of range, `do-cli.exe`
 missing or returning an error), the detail is written to:
 
 ```
-%APPDATA%\BatteryChargeManager\errors.log
+%APPDATA%\BatteryPerformanceManager\errors.log
 ```
 
 The last applied profile and thermal mode are stored in
-`%APPDATA%\BatteryChargeManager\state.json`.
+`%APPDATA%\BatteryPerformanceManager\state.json`.
 
 The detailed log the helper writes on every charge switch (state before/after)
 is `dell-battery-charge-log.jsonl`, next to the scripts. Every thermal switch
 (requested mode, `do-cli.exe` exit code, duration and output) goes to
 `dell-thermal-mode-log.jsonl`, in the same folder.
 
-After updating `BatteryChargeHelper.ps1`, an already-running helper keeps the
+After updating `BatteryPerformanceHelper.ps1`, an already-running helper keeps the
 old code until it exits: log off and back in, or end it with
-`schtasks /End /TN "\BatteryChargeManager\Helper"` (no admin needed) — the
+`schtasks /End /TN "\BatteryPerformanceManager\Helper"` (no admin needed) — the
 next click starts it again.
 
 ## Known BIOS quirk: profile switch ordering
@@ -245,7 +257,7 @@ The DellBIOSProvider validates each write to `CustomChargeStart` /
 `CustomChargeStop` against the *current* value of the other bound, not the
 final pair — so moving from a lower custom range to a higher one (e.g.
 60-65 → 75-80) fails if `Start` is written before `Stop` is raised. Both
-`Set-DellBatteryChargeProfile.ps1` and `BatteryChargeHelper.ps1` handle this
+`Set-DellBatteryChargeProfile.ps1` and `BatteryPerformanceHelper.ps1` handle this
 by writing `Stop` first, then `Start`, and retrying with the opposite order
 if the first attempt fails — this covers both directions (raising or
 lowering the range).

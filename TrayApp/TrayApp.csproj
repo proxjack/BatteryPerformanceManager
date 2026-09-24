@@ -9,8 +9,8 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <ApplicationIcon>app.ico</ApplicationIcon>
     <ApplicationManifest>app.manifest</ApplicationManifest>
-    <AssemblyName>TrayApp</AssemblyName>
-    <RootNamespace>BatteryChargeManager.TrayApp</RootNamespace>
+    <AssemblyName>BatteryPerformanceManager</AssemblyName>
+    <RootNamespace>BatteryPerformanceManager.TrayApp</RootNamespace>
 
     <!-- Shown in Task Manager and in the executable's Properties > Details. -->
     <Product>Battery and Performance Manager</Product>

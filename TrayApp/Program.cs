@@ -1,6 +1,6 @@
 using System.Windows.Forms;
 
-namespace BatteryChargeManager.TrayApp;
+namespace BatteryPerformanceManager.TrayApp;
 
 internal static class Program
 {
@@ -9,7 +9,7 @@ internal static class Program
     {
         // Single instance: avoids duplicate tray icons if the app is started twice
         // (e.g. login + manual double-click).
-        using var singleInstanceMutex = new Mutex(true, "BatteryChargeManager.TrayApp.SingleInstance", out bool isNewInstance);
+        using var singleInstanceMutex = new Mutex(true, "BatteryPerformanceManager.TrayApp.SingleInstance", out bool isNewInstance);
         if (!isNewInstance)
         {
             return;

@@ -1,7 +1,7 @@
 using System.Text.Json;
 using Microsoft.Win32;
 
-namespace BatteryChargeManager.TrayApp;
+namespace BatteryPerformanceManager.TrayApp;
 
 /// Reads, WITHOUT elevated privileges, the thermal mode currently set in Dell
 /// Optimizer. The mode can also change outside this app (the Dell Optimizer UI, or

@@ -1,7 +1,7 @@
 using System.Text.Json;
 using System.Text.Json.Serialization;
 
-namespace BatteryChargeManager.TrayApp;
+namespace BatteryPerformanceManager.TrayApp;
 
 internal sealed class AppState
 {
@@ -15,14 +15,12 @@ internal sealed class AppState
     public string? LastUpdatedUtc { get; set; }
 }
 
-/// Reads/writes %APPDATA%\BatteryChargeManager\state.json - its only purpose is to show
+/// Reads/writes %APPDATA%\BatteryPerformanceManager\state.json - its only purpose is to show
 /// in the flyout which charge profile (and thermal mode) was last applied successfully.
 /// It's never used to automatically reapply anything at startup.
 internal static class StateStore
 {
-    private static readonly string AppDataDir = Path.Combine(
-        Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
-        "BatteryChargeManager");
+    private static readonly string AppDataDir = AppDataFolder.DirectoryPath;
 
     private static readonly string StatePath = Path.Combine(AppDataDir, "state.json");
 

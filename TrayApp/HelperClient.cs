@@ -5,11 +5,11 @@ using Microsoft.Win32.TaskScheduler;
 // and in System.Threading.Tasks (included by the project's implicit usings).
 using Task = Microsoft.Win32.TaskScheduler.Task;
 
-namespace BatteryChargeManager.TrayApp;
+namespace BatteryPerformanceManager.TrayApp;
 
 internal sealed record TaskRunResult(bool Success, string? ErrorDetail);
 
-/// Talks to the persistent elevated helper (BatteryChargeHelper.ps1) over a named pipe,
+/// Talks to the persistent elevated helper (BatteryPerformanceHelper.ps1) over a named pipe,
 /// instead of launching a new elevated process on every switch: on this machine,
 /// creating a new elevated process cost ~10-12 seconds (verified independent of the
 /// launch mechanism - likely real-time antivirus scanning of a freshly created
@@ -22,8 +22,8 @@ internal sealed record TaskRunResult(bool Success, string? ErrorDetail);
 /// the helper then stays active until logoff for every following request.
 internal static class HelperClient
 {
-    private const string PipeName = "BatteryChargeManagerHelper";
-    private const string TaskFolderPath = @"\BatteryChargeManager";
+    private const string PipeName = "BatteryPerformanceManagerHelper";
+    private const string TaskFolderPath = @"\BatteryPerformanceManager";
     private const string HelperTaskName = "Helper";
 
     private static readonly TimeSpan QuickConnectTimeout = TimeSpan.FromMilliseconds(300);

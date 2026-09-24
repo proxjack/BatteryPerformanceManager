@@ -1,7 +1,7 @@
 using System.Drawing;
 using System.Windows.Forms;
 
-namespace BatteryChargeManager.TrayApp;
+namespace BatteryPerformanceManager.TrayApp;
 
 /// Windows 11 style flyout opened by left-clicking the tray icon: battery status,
 /// a tile per charge profile and per thermal mode, auto-start and exit. It closes

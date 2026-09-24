@@ -2,7 +2,7 @@ using System.Drawing;
 using System.Drawing.Drawing2D;
 using System.Windows.Forms;
 
-namespace BatteryChargeManager.TrayApp;
+namespace BatteryPerformanceManager.TrayApp;
 
 /// Base for the owner-drawn controls of the flyout: hover/pressed state, keyboard
 /// activation (Space/Enter) and the focus cue, which Windows only shows after

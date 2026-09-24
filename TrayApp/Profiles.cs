@@ -1,4 +1,4 @@
-namespace BatteryChargeManager.TrayApp;
+namespace BatteryPerformanceManager.TrayApp;
 
 internal enum ChargeProfile
 {
@@ -10,7 +10,7 @@ internal enum ChargeProfile
 
 /// Profile metadata: title, description and icon shown by the flyout, and the
 /// identifier sent to the elevated helper over the named pipe (it must exactly match
-/// the values accepted by BatteryChargeHelper.ps1) - the same identifier is also what
+/// the values accepted by BatteryPerformanceHelper.ps1) - the same identifier is also what
 /// gets saved in state.json.
 internal sealed record ChargeProfileInfo(ChargeProfile Id, string Title, string Description, string Glyph, string StateId);
 

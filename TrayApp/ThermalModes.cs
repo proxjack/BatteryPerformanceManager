@@ -1,4 +1,4 @@
-namespace BatteryChargeManager.TrayApp;
+namespace BatteryPerformanceManager.TrayApp;
 
 internal enum ThermalMode
 {
@@ -11,7 +11,7 @@ internal enum ThermalMode
 /// Metadata of a Dell Optimizer thermal mode. Title is the full name (tooltip, logs,
 /// screen readers), ShortTitle the one that fits a flyout tile. StateId is what gets
 /// sent to the elevated helper (as "thermal:<StateId>", it must match the values
-/// accepted by Set-ThermalMode in BatteryChargeHelper.ps1) and saved in state.json;
+/// accepted by Set-ThermalMode in BatteryPerformanceHelper.ps1) and saved in state.json;
 /// DellValue is the name Dell Optimizer itself uses, to recognize the active mode.
 internal sealed record ThermalModeInfo(
     ThermalMode Id, string Title, string ShortTitle, string Description, string Glyph, string StateId, string DellValue);

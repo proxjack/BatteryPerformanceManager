@@ -1,6 +1,6 @@
 using System.Drawing;
 
-namespace BatteryChargeManager.TrayApp;
+namespace BatteryPerformanceManager.TrayApp;
 
 internal static class AppIcon
 {
@@ -12,7 +12,7 @@ internal static class AppIcon
         try
         {
             using Stream? stream = typeof(AppIcon).Assembly
-                .GetManifestResourceStream("BatteryChargeManager.TrayApp.app.ico");
+                .GetManifestResourceStream("BatteryPerformanceManager.TrayApp.app.ico");
 
             return stream is not null ? new Icon(stream, size) : FallbackIcon();
         }

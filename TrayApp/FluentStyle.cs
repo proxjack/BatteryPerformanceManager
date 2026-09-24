@@ -1,7 +1,7 @@
 using System.Drawing;
 using System.Drawing.Drawing2D;
 
-namespace BatteryChargeManager.TrayApp;
+namespace BatteryPerformanceManager.TrayApp;
 
 /// Shared Windows 11 look of the flyout controls: fonts and rounded shapes.
 /// Sizes are given in logical pixels (as at 100% scaling) and converted for the DPI

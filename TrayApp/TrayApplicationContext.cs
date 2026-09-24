@@ -1,6 +1,6 @@
 using System.Windows.Forms;
 
-namespace BatteryChargeManager.TrayApp;
+namespace BatteryPerformanceManager.TrayApp;
 
 /// Windowless application context: the UI is the tray icon and the flyout it opens
 /// when clicked (QuickFlyout), which shows the state kept here. No toast notifications
@@ -31,6 +31,15 @@ internal sealed class TrayApplicationContext : ApplicationContext
             Visible = true,
         };
         _notifyIcon.MouseClick += OnNotifyIconClick;
+
+        try
+        {
+            AutoStart.MigrateLegacyEntry();
+        }
+        catch (Exception ex)
+        {
+            ErrorLog.Write($"Could not migrate the old auto-start entry: {ex.Message}");
+        }
 
         // The last successfully applied profile, read from state.json, is only shown as
         // active. Nothing is reapplied: no scheduled task is started when the app starts.
@@ -108,7 +117,7 @@ internal sealed class TrayApplicationContext : ApplicationContext
             else
             {
                 // No popup/toast by explicit requirement: the details only go to the
-                // local log the user can read at %APPDATA%\BatteryChargeManager\errors.log,
+                // local log the user can read at %APPDATA%\BatteryPerformanceManager\errors.log,
                 // the flyout just marks the tile.
                 ErrorLog.Write($"{failureDescription} failed: {result.ErrorDetail}");
                 _flyout.ShowFailure(item);

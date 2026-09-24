@@ -10,7 +10,7 @@ identical when launching manually with "Run as administrator", so independent
 of the Task Scheduler - most likely real-time antivirus scanning of a freshly
 created elevated process).
 
-This script starts ONCE (through the '\BatteryChargeManager\Helper' Scheduled
+This script starts ONCE (through the '\BatteryPerformanceManager\Helper' Scheduled
 Task, started on demand by the tray app on the first switch) and keeps
 listening on a local named pipe for the rest of the login session, applying
 switches in-process. It exits on its own at logoff (Scheduled Tasks with
@@ -27,7 +27,7 @@ Protocol: one line per request - a charge profile id ('60_65', ...) or
 #>
 
 $ErrorActionPreference = 'Stop'
-$PipeName = 'BatteryChargeManagerHelper'
+$PipeName = 'BatteryPerformanceManagerHelper'
 $LogPath = Join-Path $PSScriptRoot 'dell-battery-charge-log.jsonl'
 $ThermalLogPath = Join-Path $PSScriptRoot 'dell-thermal-mode-log.jsonl'
 
