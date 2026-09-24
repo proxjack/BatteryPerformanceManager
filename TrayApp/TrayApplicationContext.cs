@@ -3,9 +3,9 @@ using System.Windows.Forms;
 
 namespace BatteryChargeManager.TrayApp;
 
-/// Contesto applicativo senza finestra: tutta l'interfaccia è il NotifyIcon nella
-/// system tray e il suo menu contestuale. Nessun popup, nessuna notifica toast,
-/// nessun cambio icona per profilo (richiesta esplicita: interfaccia minimale).
+/// Windowless application context: the whole UI is the NotifyIcon in the system
+/// tray and its context menu. No popups, no toast notifications, no per-profile
+/// icon changes (explicit requirement: minimal interface).
 internal sealed class TrayApplicationContext : ApplicationContext
 {
     private readonly NotifyIcon _notifyIcon;
@@ -44,13 +44,13 @@ internal sealed class TrayApplicationContext : ApplicationContext
             _thermalItems[mode.Id] = item;
         }
 
-        // La modalità termica può cambiare anche fuori da questa app (Dell Optimizer,
-        // modalità energetica di Windows): la si rilegge ogni volta che si apre il menu.
+        // The thermal mode can also change outside this app (Dell Optimizer, Windows
+        // power mode): it's re-read every time the menu opens.
         menu.Opening += (_, _) => RefreshCheckedThermalMode();
 
         menu.Items.Add(new ToolStripSeparator());
 
-        _autoStartItem = new ToolStripMenuItem("Avvio automatico")
+        _autoStartItem = new ToolStripMenuItem("Auto-start")
         {
             CheckOnClick = false,
             Checked = AutoStart.IsEnabled(),
@@ -60,7 +60,7 @@ internal sealed class TrayApplicationContext : ApplicationContext
 
         menu.Items.Add(new ToolStripSeparator());
 
-        var exitItem = new ToolStripMenuItem("Esci");
+        var exitItem = new ToolStripMenuItem("Exit");
         exitItem.Click += (_, _) => ExitApplication();
         menu.Items.Add(exitItem);
 
@@ -72,9 +72,9 @@ internal sealed class TrayApplicationContext : ApplicationContext
             Visible = true,
         };
 
-        // Marca visivamente (solo a scopo informativo) l'ultimo profilo applicato con
-        // successo, letto da state.json. Non riapplica nulla: nessuna scheduled task
-        // viene avviata all'avvio dell'app.
+        // Visually marks (for information only) the last successfully applied profile,
+        // read from state.json. Nothing is reapplied: no scheduled task is started when
+        // the app starts.
         ChargeProfileInfo? lastProfile = Profiles.FromStateId(StateStore.Load().LastProfile);
         if (lastProfile is not null)
         {
@@ -98,7 +98,7 @@ internal sealed class TrayApplicationContext : ApplicationContext
                 StateStore.SaveLastProfile(profile.StateId);
                 SetCheckedProfile(profile.Id);
             },
-            failureDescription: $"Cambio profilo '{profile.MenuText}'");
+            failureDescription: $"Switching to charge profile '{profile.MenuText}'");
     }
 
     private async void OnThermalModeClicked(object? sender, EventArgs e)
@@ -115,11 +115,11 @@ internal sealed class TrayApplicationContext : ApplicationContext
                 StateStore.SaveLastThermalMode(mode.StateId);
                 SetCheckedThermalMode(mode.Id);
             },
-            failureDescription: $"Cambio modalità termica '{mode.MenuText}'");
+            failureDescription: $"Switching to thermal mode '{mode.MenuText}'");
     }
 
-    // Una richiesta alla volta: l'helper le serve comunque in sequenza, e un secondo
-    // click durante il primo cambio verrebbe solo accodato senza alcun riscontro visivo.
+    // One request at a time: the helper serves them sequentially anyway, and a second
+    // click during the first switch would just be queued without any visual feedback.
     private async Task RunHelperRequestAsync(Func<TaskRunResult> request, Action onSuccess, string failureDescription)
     {
         if (_busy)
@@ -138,9 +138,9 @@ internal sealed class TrayApplicationContext : ApplicationContext
             }
             else
             {
-                // Niente popup/toast per richiesta esplicita: l'errore finisce solo nel
-                // log locale leggibile dall'utente in %APPDATA%\BatteryChargeManager\errors.log.
-                ErrorLog.Write($"{failureDescription} fallito: {result.ErrorDetail}");
+                // No popup/toast by explicit requirement: the error only goes to the
+                // local log the user can read at %APPDATA%\BatteryChargeManager\errors.log.
+                ErrorLog.Write($"{failureDescription} failed: {result.ErrorDetail}");
             }
         }
         finally
@@ -158,12 +158,12 @@ internal sealed class TrayApplicationContext : ApplicationContext
         }
         catch (Exception ex)
         {
-            ErrorLog.Write($"Impossibile aggiornare l'avvio automatico: {ex.Message}");
+            ErrorLog.Write($"Could not update auto-start: {ex.Message}");
         }
     }
 
-    // Carica battery.ico dalla risorsa incorporata a 32x32 (dimensione nativa della tray
-    // a DPI standard), invece di lasciare che Windows scali una dimensione non ottimale.
+    // Loads battery.ico from the embedded resource at 32x32 (the tray's native size at
+    // standard DPI), instead of letting Windows scale a non-optimal size.
     private static Icon LoadTrayIcon()
     {
         try
@@ -179,8 +179,8 @@ internal sealed class TrayApplicationContext : ApplicationContext
         }
     }
 
-    // Intestazione di sezione non cliccabile, per distinguere i profili di ricarica
-    // dalle modalità termiche (es. "Standard" vs "Optimized").
+    // Non-clickable section header, to tell charge profiles apart from thermal
+    // modes (e.g. "Standard" vs "Optimized").
     private static ToolStripMenuItem CreateSectionHeader(string text) => new(text)
     {
         Enabled = false,
@@ -194,8 +194,8 @@ internal sealed class TrayApplicationContext : ApplicationContext
         }
     }
 
-    // Preferisce la modalità effettivamente impostata in Dell Optimizer; se non è
-    // leggibile, ripiega sull'ultima applicata con successo da questa app.
+    // Prefers the mode actually set in Dell Optimizer; if that can't be read, falls
+    // back to the last one successfully applied by this app.
     private void RefreshCheckedThermalMode()
     {
         ThermalModeInfo? current = ThermalModes.FromDellValue(DellOptimizerState.TryReadThermalMode())

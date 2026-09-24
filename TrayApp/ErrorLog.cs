@@ -1,7 +1,7 @@
 namespace BatteryChargeManager.TrayApp;
 
-/// Log locale in testo semplice per gli errori (nessun popup/toast per richiesta esplicita:
-/// l'interfaccia deve restare minimale, solo il menu contestuale).
+/// Local plain-text error log (no popup/toast by explicit requirement: the interface
+/// must stay minimal, just the context menu).
 internal static class ErrorLog
 {
     private static readonly string AppDataDir = Path.Combine(
@@ -20,8 +20,8 @@ internal static class ErrorLog
         }
         catch
         {
-            // Se anche scrivere il log fallisce (disco pieno, permessi, ecc.) non c'è
-            // altro posto dove segnalarlo senza violare il vincolo "niente popup".
+            // If even writing the log fails (disk full, permissions, etc.) there's no
+            // other place to report it without breaking the "no popups" requirement.
         }
     }
 }

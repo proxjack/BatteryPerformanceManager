@@ -1,25 +1,25 @@
 using System.IO.Pipes;
 using System.Text;
 using Microsoft.Win32.TaskScheduler;
-// Alias esplicito: "Task" esiste sia in Microsoft.Win32.TaskScheduler (una scheduled task)
-// sia in System.Threading.Tasks (incluso dagli implicit usings del progetto).
+// Explicit alias: "Task" exists both in Microsoft.Win32.TaskScheduler (a scheduled task)
+// and in System.Threading.Tasks (included by the project's implicit usings).
 using Task = Microsoft.Win32.TaskScheduler.Task;
 
 namespace BatteryChargeManager.TrayApp;
 
 internal sealed record TaskRunResult(bool Success, string? ErrorDetail);
 
-/// Comunica con l'helper elevato persistente (BatteryChargeHelper.ps1) via named pipe,
-/// invece di lanciare un nuovo processo elevato ad ogni cambio profilo: su questa
-/// macchina, creare un nuovo processo elevato costava ~10-12 secondi (verificato
-/// indipendente dal meccanismo di lancio — probabile scansione antivirus in tempo
-/// reale su un processo elevato appena creato), mentre inviare un comando a un
-/// processo già in esecuzione è quasi istantaneo.
+/// Talks to the persistent elevated helper (BatteryChargeHelper.ps1) over a named pipe,
+/// instead of launching a new elevated process on every switch: on this machine,
+/// creating a new elevated process cost ~10-12 seconds (verified independent of the
+/// launch mechanism - likely real-time antivirus scanning of a freshly created
+/// elevated process), while sending a command to an already running process is
+/// almost instant.
 ///
-/// Se l'helper non è ancora attivo (primo cambio profilo della sessione), lo si avvia
-/// tramite la stessa Scheduled Task elevata di prima (RunLevel=Highest, nessun prompt
-/// UAC) e si attende che la pipe diventi disponibile — quel primo avvio paga ancora il
-/// costo pieno, ma resta poi attivo fino al logout per tutte le richieste successive.
+/// If the helper isn't running yet (first switch of the session), it's started
+/// through the elevated Scheduled Task (RunLevel=Highest, no UAC prompt) and we wait
+/// for the pipe to become available - that first start still pays the full cost, but
+/// the helper then stays active until logoff for every following request.
 internal static class HelperClient
 {
     private const string PipeName = "BatteryChargeManagerHelper";
@@ -43,13 +43,13 @@ internal static class HelperClient
             if (client is null)
             {
                 return new TaskRunResult(false,
-                    "Impossibile connettersi all'helper elevato entro il timeout. " +
-                    "Assicurati di aver eseguito setup-scheduled-tasks.ps1 come amministratore.");
+                    "Could not connect to the elevated helper within the timeout. " +
+                    "Make sure you ran setup-scheduled-tasks.ps1 as administrator.");
             }
 
-            // leaveOpen: true su entrambi — altrimenti il primo dei due a essere smaltito
-            // chiude la pipe sottostante, e il secondo lancia "Cannot access a closed pipe"
-            // durante il proprio Dispose, anche se la richiesta è già andata a buon fine.
+            // leaveOpen: true on both - otherwise the first one to be disposed closes the
+            // underlying pipe, and the second throws "Cannot access a closed pipe" during
+            // its own Dispose, even though the request already succeeded.
             using var writer = new StreamWriter(client, Encoding.UTF8, bufferSize: 1024, leaveOpen: true) { AutoFlush = true };
             using var reader = new StreamReader(client, Encoding.UTF8, detectEncodingFromByteOrderMarks: true, bufferSize: 1024, leaveOpen: true);
 
@@ -61,11 +61,11 @@ internal static class HelperClient
                 return new TaskRunResult(true, null);
             }
 
-            return new TaskRunResult(false, response ?? "Nessuna risposta dall'helper.");
+            return new TaskRunResult(false, response ?? "No response from the helper.");
         }
         catch (Exception ex)
         {
-            return new TaskRunResult(false, $"Errore comunicando con l'helper elevato: {ex.Message}");
+            return new TaskRunResult(false, $"Error communicating with the elevated helper: {ex.Message}");
         }
     }
 
@@ -80,8 +80,8 @@ internal static class HelperClient
         }
         catch
         {
-            // Se la task non esiste/non si avvia, il tentativo di connessione sottostante
-            // fallirà comunque e il chiamante riceverà un messaggio d'errore chiaro.
+            // If the task doesn't exist or doesn't start, the connection attempt below
+            // will fail anyway and the caller gets a clear error message.
         }
 
         return TryConnect(FirstStartConnectTimeout);

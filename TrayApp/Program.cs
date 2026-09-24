@@ -7,8 +7,8 @@ internal static class Program
     [STAThread]
     private static void Main()
     {
-        // Un'unica istanza: evita menu tray duplicati se l'app viene avviata due volte
-        // (es. login + doppio click manuale).
+        // Single instance: avoids duplicate tray menus if the app is started twice
+        // (e.g. login + manual double-click).
         using var singleInstanceMutex = new Mutex(true, "BatteryChargeManager.TrayApp.SingleInstance", out bool isNewInstance);
         if (!isNewInstance)
         {
@@ -17,7 +17,7 @@ internal static class Program
 
         ApplicationConfiguration.Initialize();
 
-        // Nessuna finestra principale: l'intera UI è il NotifyIcon + il suo menu contestuale.
+        // No main window: the whole UI is the NotifyIcon + its context menu.
         Application.Run(new TrayApplicationContext());
     }
 }

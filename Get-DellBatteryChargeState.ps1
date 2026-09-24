@@ -1,13 +1,13 @@
 <#
-Legge e mostra lo stato attuale della configurazione di ricarica batteria via
-DellBIOSProvider, senza modificare nulla. Utile per verificare che il profilo
-applicato dalla tray app (o dallo script) corrisponda a quanto atteso.
+Reads and shows the current battery charge configuration through
+DellBIOSProvider, without changing anything. Useful to check that the profile
+applied by the tray app (or by the script) matches what's expected.
 
-Uso:
+Usage:
   .\Get-DellBatteryChargeState.ps1
 
-Deve essere eseguito in una PowerShell aperta come Amministratore
-(il provider DellSmbios richiede elevazione anche solo per leggere).
+Must be run from a PowerShell opened as Administrator
+(the DellSmbios provider requires elevation even just to read).
 #>
 
 $ErrorActionPreference = 'Stop'
@@ -19,19 +19,19 @@ function Test-IsAdministrator {
 }
 
 if (-not (Test-IsAdministrator)) {
-    Write-Error "Questo script deve essere eseguito come Amministratore (il provider DellSmbios richiede elevazione). Riapri PowerShell con 'Esegui come amministratore' e rilancia lo script."
+    Write-Error "This script must be run as Administrator (the DellSmbios provider requires elevation). Reopen PowerShell with 'Run as administrator' and run the script again."
     exit 1
 }
 
 if (-not (Get-Module -ListAvailable -Name DellBIOSProvider)) {
-    Write-Error "Il modulo DellBIOSProvider non è installato. Esegui prima: Install-Module -Name DellBIOSProvider -Scope AllUsers -Force"
+    Write-Error "The DellBIOSProvider module is not installed. Run first: Install-Module -Name DellBIOSProvider -Scope AllUsers -Force"
     exit 1
 }
 
 Import-Module DellBIOSProvider
 
 if (-not (Test-Path DellSmbios:\PowerManagement)) {
-    Write-Error "Il percorso DellSmbios:\PowerManagement non è disponibile su questo BIOS."
+    Write-Error "The DellSmbios:\PowerManagement path is not available on this BIOS."
     exit 1
 }
 
@@ -45,10 +45,10 @@ Write-Host "CustomChargeStart    : $start" -ForegroundColor Cyan
 Write-Host "CustomChargeStop     : $stop" -ForegroundColor Cyan
 Write-Host ""
 
-$profile = switch ($cfg) {
-    'Custom'   { if ($start -eq 60 -and $stop -eq 65) { '60_65' } elseif ($start -eq 75 -and $stop -eq 80) { '75_80' } else { "Custom non standard ($start-$stop)" } }
+$matchedProfile = switch ($cfg) {
+    'Custom'   { if ($start -eq 60 -and $stop -eq 65) { '60_65' } elseif ($start -eq 75 -and $stop -eq 80) { '75_80' } else { "non-standard Custom ($start-$stop)" } }
     'Standard' { 'standard' }
     'Express'  { 'fastcharge' }
-    default    { "sconosciuto ($cfg)" }
+    default    { "unknown ($cfg)" }
 }
-Write-Host "Corrisponde al profilo: $profile" -ForegroundColor Green
+Write-Host "Matches profile: $matchedProfile" -ForegroundColor Green

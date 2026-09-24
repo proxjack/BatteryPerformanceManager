@@ -1,29 +1,29 @@
 <#
-Helper elevato persistente per Battery Charge Manager.
+Persistent elevated helper for Battery Charge Manager.
 
-Perché esiste: lanciare un NUOVO processo PowerShell elevato ad ogni cambio
-profilo (come faceva l'approccio precedente, una Scheduled Task per profilo)
-costa circa 10-12 secondi su questa macchina — non per il modulo DellBIOSProvider
-in sé (Import-Module + mount di DellSmbios: costano pochi millisecondi), ma per
-l'overhead generico di creare un processo elevato (verificato: identico anche
-lanciando manualmente con "Esegui come amministratore", quindi indipendente dal
-Task Scheduler — molto probabilmente la scansione antivirus in tempo reale su
-un processo elevato appena creato).
+Why it exists: launching a NEW elevated PowerShell process on every profile
+switch (what the previous approach did, one Scheduled Task per profile) costs
+about 10-12 seconds on this machine - not because of the DellBIOSProvider
+module itself (Import-Module + mounting DellSmbios: take a few milliseconds),
+but because of the generic overhead of creating an elevated process (verified:
+identical when launching manually with "Run as administrator", so independent
+of the Task Scheduler - most likely real-time antivirus scanning of a freshly
+created elevated process).
 
-Questo script parte UNA VOLTA (via la Scheduled Task '\BatteryChargeManager\Helper',
-avviata su richiesta dalla tray app al primo cambio profilo) e resta in ascolto
-su una named pipe locale per il resto della sessione di login, applicando i
-cambi di profilo in-process. Si chiude da solo al logout (le Scheduled Task con
-LogonType=Interactive vengono terminate automaticamente da Windows al logout).
+This script starts ONCE (through the '\BatteryChargeManager\Helper' Scheduled
+Task, started on demand by the tray app on the first switch) and keeps
+listening on a local named pipe for the rest of the login session, applying
+switches in-process. It exits on its own at logoff (Scheduled Tasks with
+LogonType=Interactive are terminated automatically by Windows at logoff).
 
-Non sostituisce Set-DellBatteryChargeProfile.ps1 (che resta utilizzabile da
-riga di comando per test manuali) — ne duplica la logica di validazione/scrittura
-perché quello script è pensato per un'esecuzione singola e termina con exit,
-mentre questo deve girare indefinitamente in loop.
+It doesn't replace Set-DellBatteryChargeProfile.ps1 (which stays usable from
+the command line for manual testing) - it duplicates its validation/write
+logic because that script is meant for a single run and ends with exit,
+while this one has to loop indefinitely.
 
-Gestisce anche la modalità termica di Dell Optimizer (Optimized/Cool/Quiet/Ultra).
-Protocollo: una riga per richiesta — un id profilo di ricarica ('60_65', ...)
-oppure 'thermal:<modo>' ('thermal:quiet', ...). Risposta: 'OK' o 'ERROR: ...'.
+It also handles the Dell Optimizer thermal mode (Optimized/Cool/Quiet/Ultra).
+Protocol: one line per request - a charge profile id ('60_65', ...) or
+'thermal:<mode>' ('thermal:quiet', ...). Response: 'OK' or 'ERROR: ...'.
 #>
 
 $ErrorActionPreference = 'Stop'
@@ -31,12 +31,12 @@ $PipeName = 'BatteryChargeManagerHelper'
 $LogPath = Join-Path $PSScriptRoot 'dell-battery-charge-log.jsonl'
 $ThermalLogPath = Join-Path $PSScriptRoot 'dell-thermal-mode-log.jsonl'
 
-# La modalità termica NON è esposta da DellBIOSProvider su questo XPS 14
-# (DellSmbios:\PowerManagement\ThermalManagement non esiste): Dell Optimizer la
-# imposta via interfaccia SMBIOS ("User Selectable Thermal Tables") e la tiene
-# sincronizzata con la modalità energetica di Windows. Passando dalla sua CLI
-# ufficiale (richiede admin, quindi va bene qui) l'effetto è identico a un click
-# nell'interfaccia di Dell Optimizer, sincronizzazione compresa.
+# The thermal mode is NOT exposed by DellBIOSProvider on this XPS 14
+# (DellSmbios:\PowerManagement\ThermalManagement doesn't exist): Dell Optimizer
+# sets it through the SMBIOS interface ("User Selectable Thermal Tables") and
+# keeps it in sync with the Windows power mode. Going through its official CLI
+# (which requires admin, so it's fine here) has exactly the same effect as a
+# click in the Dell Optimizer UI, sync included.
 $DoCliPath = Join-Path $env:ProgramFiles 'Dell\DellOptimizer\do-cli.exe'
 $DoCliTimeoutMs = 60000
 
@@ -47,19 +47,19 @@ function Test-IsAdministrator {
 }
 
 if (-not (Test-IsAdministrator)) {
-    Write-Error "Questo script deve essere eseguito come Amministratore."
+    Write-Error "This script must be run as Administrator."
     exit 1
 }
 
 if (-not (Get-Module -ListAvailable -Name DellBIOSProvider)) {
-    Write-Error "Il modulo DellBIOSProvider non è installato. Esegui prima: Install-Module -Name DellBIOSProvider -Scope AllUsers -Force"
+    Write-Error "The DellBIOSProvider module is not installed. Run first: Install-Module -Name DellBIOSProvider -Scope AllUsers -Force"
     exit 1
 }
 
 Import-Module DellBIOSProvider
 
 if (-not (Test-Path DellSmbios:\PowerManagement)) {
-    Write-Error "Il percorso DellSmbios:\PowerManagement non è disponibile su questo BIOS."
+    Write-Error "The DellSmbios:\PowerManagement path is not available on this BIOS."
     exit 1
 }
 
@@ -80,13 +80,13 @@ function Set-ChargeProfile {
         '75_80'      { $cfg = 'Custom'; $start = 75; $stop = 80 }
         'standard'   { $cfg = 'Standard'; $start = $null; $stop = $null }
         'fastcharge' { $cfg = 'Express'; $start = $null; $stop = $null }
-        default      { throw "Profilo sconosciuto: '$Profile'" }
+        default      { throw "Unknown profile: '$Profile'" }
     }
 
     if ($cfg -eq 'Custom') {
-        if ($start -lt 50 -or $start -gt 95) { throw "CustomChargeStart fuori range (50-95): $start" }
-        if ($stop -lt 55 -or $stop -gt 100) { throw "CustomChargeStop fuori range (55-100): $stop" }
-        if (($stop - $start) -lt 5) { throw "Differenza minima tra start e stop deve essere di 5 punti percentuali (attuale: $($stop - $start))" }
+        if ($start -lt 50 -or $start -gt 95) { throw "CustomChargeStart out of range (50-95): $start" }
+        if ($stop -lt 55 -or $stop -gt 100) { throw "CustomChargeStop out of range (55-100): $stop" }
+        if (($stop - $start) -lt 5) { throw "Start and stop must be at least 5 percentage points apart (current: $($stop - $start))" }
     }
 
     $before = Get-CurrentChargeState
@@ -95,10 +95,10 @@ function Set-ChargeProfile {
     Set-Item -Path DellSmbios:\PowerManagement\PrimaryBattChargeCfg -Value $cfg
 
     if ($cfg -eq 'Custom') {
-        # Il BIOS valida ogni singola scrittura rispetto al valore CORRENTE dell'altro
-        # estremo (non rispetto alla coppia finale): vedi Set-DellBatteryChargeProfile.ps1
-        # per la spiegazione completa. Stessa fix qui: proviamo un ordine, e se fallisce
-        # (l'intervallo si sta spostando nella direzione opposta) proviamo l'altro.
+        # The BIOS validates each single write against the CURRENT value of the
+        # other bound (not against the final pair): see Set-DellBatteryChargeProfile.ps1
+        # for the full explanation. Same fix here: try one order, and if it fails
+        # (the range is moving in the opposite direction) try the other one.
         try {
             Set-Item -Path DellSmbios:\PowerManagement\CustomChargeStop -Value $stop
             Set-Item -Path DellSmbios:\PowerManagement\CustomChargeStart -Value $start
@@ -115,23 +115,23 @@ function Set-ChargeProfile {
 function Set-ThermalMode {
     param([Parameter(Mandatory = $true)][string]$Mode)
 
-    # Whitelist: solo questi valori arrivano mai sulla riga di comando di do-cli.
-    # Sono i nomi esatti usati da Dell Optimizer (vedi il suo Service.log).
+    # Whitelist: only these values ever reach the do-cli command line.
+    # They are the exact names Dell Optimizer uses (see its Service.log).
     switch ($Mode) {
         'optimized' { $value = 'Optimized' }
         'cool'      { $value = 'Cool' }
         'quiet'     { $value = 'Quiet' }
         'ultra'     { $value = 'Ultra' }
-        default     { throw "Modalita termica sconosciuta: '$Mode'" }
+        default     { throw "Unknown thermal mode: '$Mode'" }
     }
 
     if (-not (Test-Path $DoCliPath)) {
-        throw "Dell Optimizer CLI non trovata in '$DoCliPath': Dell Optimizer e' installato?"
+        throw "Dell Optimizer CLI not found at '$DoCliPath': is Dell Optimizer installed?"
     }
 
-    # Process invece di '& do-cli 2>&1': con $ErrorActionPreference='Stop', in
-    # Windows PowerShell 5.1 una riga su stderr di un eseguibile nativo diventa
-    # un'eccezione. Serve anche per avere un timeout.
+    # Process instead of '& do-cli 2>&1': with $ErrorActionPreference='Stop', in
+    # Windows PowerShell 5.1 a line on a native executable's stderr becomes an
+    # exception. It also gives us a timeout.
     $psi = New-Object System.Diagnostics.ProcessStartInfo
     $psi.FileName = $DoCliPath
     $psi.Arguments = "/configure -name=SystemPowerConfiguration.ThermalMode -value=$value"
@@ -146,11 +146,11 @@ function Set-ThermalMode {
     $stderr = $process.StandardError.ReadToEndAsync()
     if (-not $process.WaitForExit($DoCliTimeoutMs)) {
         $process.Kill()
-        throw "do-cli non ha risposto entro $($DoCliTimeoutMs / 1000) secondi."
+        throw "do-cli did not respond within $($DoCliTimeoutMs / 1000) seconds."
     }
     $process.WaitForExit()
 
-    # Una sola riga: la risposta sulla pipe è line-based.
+    # Single line: the response over the pipe is line-based.
     $output = (($stdout.Result + ' ' + $stderr.Result) -replace '\s+', ' ').Trim()
 
     [PSCustomObject]@{
@@ -162,20 +162,20 @@ function Set-ThermalMode {
     } | ConvertTo-Json -Compress | Add-Content -Path $ThermalLogPath
 
     if ($process.ExitCode -ne 0) {
-        throw "do-cli ha restituito il codice $($process.ExitCode): $output"
+        throw "do-cli returned exit code $($process.ExitCode): $output"
     }
 }
 
 Add-Type -AssemblyName System.Core
 
-# Named pipe ristretta al solo utente corrente: nessun altro processo/utente
-# locale può inviare comandi a questo helper elevato.
+# Named pipe restricted to the current user only: no other local process/user
+# can send commands to this elevated helper.
 $currentUserSid = [Security.Principal.WindowsIdentity]::GetCurrent().User
 $pipeSecurity = New-Object System.IO.Pipes.PipeSecurity
 $rule = New-Object System.IO.Pipes.PipeAccessRule($currentUserSid, [System.IO.Pipes.PipeAccessRights]::ReadWrite, [System.Security.AccessControl.AccessControlType]::Allow)
 $pipeSecurity.AddAccessRule($rule)
 
-Write-Host "Helper avviato, in ascolto sulla pipe '$PipeName'. Resta attivo fino al logout."
+Write-Host "Helper started, listening on pipe '$PipeName'. It stays active until logoff."
 
 while ($true) {
     $pipe = $null
@@ -207,11 +207,11 @@ while ($true) {
             $writer.WriteLine("ERROR: $($_.Exception.Message)")
         }
     } catch {
-        # Un'altra istanza del helper è già in ascolto sulla stessa pipe, o un
-        # client si è disconnesso a metà: esci se la pipe è già occupata,
-        # altrimenti riparti col prossimo giro.
+        # Another helper instance is already listening on the same pipe, or a
+        # client disconnected halfway: exit if the pipe is already taken,
+        # otherwise start over with the next iteration.
         if ($_.Exception -is [System.IO.IOException] -and $_.Exception.Message -match 'already exist') {
-            Write-Host "Un'altra istanza dell'helper è già in ascolto. Esco."
+            Write-Host "Another helper instance is already listening. Exiting."
             exit 0
         }
     } finally {

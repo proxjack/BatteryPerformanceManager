@@ -15,9 +15,9 @@ internal sealed class AppState
     public string? LastUpdatedUtc { get; set; }
 }
 
-/// Legge/scrive %APPDATA%\BatteryChargeManager\state.json — l'unico scopo è mostrare
-/// visivamente nel menu qual è l'ultimo profilo di ricarica (e l'ultima modalità termica)
-/// applicato con successo. Non viene mai usato per riapplicare automaticamente nulla all'avvio.
+/// Reads/writes %APPDATA%\BatteryChargeManager\state.json - its only purpose is to show
+/// in the menu which charge profile (and thermal mode) was last applied successfully.
+/// It's never used to automatically reapply anything at startup.
 internal static class StateStore
 {
     private static readonly string AppDataDir = Path.Combine(
@@ -40,8 +40,8 @@ internal static class StateStore
         }
         catch
         {
-            // state.json corrotto o illeggibile: non è un errore fatale, semplicemente
-            // nessun profilo risulterà marcato nel menu finché non se ne sceglie uno.
+            // Corrupted or unreadable state.json: not a fatal error, simply no profile
+            // will be checked in the menu until one is picked.
             return new AppState();
         }
     }
@@ -50,8 +50,8 @@ internal static class StateStore
 
     public static void SaveLastThermalMode(string stateId) => Update(state => state.LastThermalMode = stateId);
 
-    // Legge-modifica-scrive: salvare il profilo di ricarica non deve cancellare la
-    // modalità termica salvata, e viceversa.
+    // Read-modify-write: saving the charge profile must not wipe the saved thermal
+    // mode, and vice versa.
     private static void Update(Action<AppState> change)
     {
         Directory.CreateDirectory(AppDataDir);

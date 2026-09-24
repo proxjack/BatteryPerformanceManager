@@ -1,15 +1,15 @@
 <#
-Applica un profilo di ricarica batteria custom sul Dell XPS 14 via DellBIOSProvider.
-Vedi dell-battery-charge-test.md per il contesto.
+Applies a custom battery charge profile on the Dell XPS 14 through DellBIOSProvider.
+See README.md for context.
 
-Uso:
+Usage:
   .\Set-DellBatteryChargeProfile.ps1 -Profile 60_65
   .\Set-DellBatteryChargeProfile.ps1 -Profile 75_80
-  .\Set-DellBatteryChargeProfile.ps1 -Profile standard      # ricarica normale Dell, fino al 100%
-  .\Set-DellBatteryChargeProfile.ps1 -Profile fastcharge    # ExpressCharge (ricarica rapida)
-  .\Set-DellBatteryChargeProfile.ps1 -Profile 60_65 -WhatIf   # mostra cosa farebbe senza scrivere nulla
+  .\Set-DellBatteryChargeProfile.ps1 -Profile standard      # normal Dell charging, up to 100%
+  .\Set-DellBatteryChargeProfile.ps1 -Profile fastcharge    # ExpressCharge (fast charging)
+  .\Set-DellBatteryChargeProfile.ps1 -Profile 60_65 -WhatIf   # shows what it would do without writing anything
 
-Deve essere eseguito in una PowerShell aperta come Amministratore.
+Must be run from a PowerShell opened as Administrator.
 #>
 
 [CmdletBinding(SupportsShouldProcess = $true)]
@@ -24,9 +24,9 @@ param(
 $ErrorActionPreference = 'Stop'
 
 if (-not $LogPath) {
-    # $PSScriptRoot non è affidabile come default-value di parametro quando lo script
-    # parte da una Scheduled Task (working directory diversa, es. System32): lo calcoliamo
-    # qui nel corpo dello script, dove è sempre risolto correttamente.
+    # $PSScriptRoot isn't reliable as a parameter default value when the script
+    # starts from a Scheduled Task (different working directory, e.g. System32):
+    # we compute it here in the script body, where it always resolves correctly.
     $LogPath = Join-Path $PSScriptRoot 'dell-battery-charge-log.jsonl'
 }
 
@@ -37,19 +37,19 @@ function Test-IsAdministrator {
 }
 
 if (-not (Test-IsAdministrator)) {
-    Write-Error "Questo script deve essere eseguito come Amministratore (il provider DellSmbios richiede elevazione). Riapri PowerShell con 'Esegui come amministratore' e rilancia lo script."
+    Write-Error "This script must be run as Administrator (the DellSmbios provider requires elevation). Reopen PowerShell with 'Run as administrator' and run the script again."
     exit 1
 }
 
 if (-not (Get-Module -ListAvailable -Name DellBIOSProvider)) {
-    Write-Error "Il modulo DellBIOSProvider non è installato. Esegui prima: Install-Module -Name DellBIOSProvider -Scope AllUsers -Force"
+    Write-Error "The DellBIOSProvider module is not installed. Run first: Install-Module -Name DellBIOSProvider -Scope AllUsers -Force"
     exit 1
 }
 
 Import-Module DellBIOSProvider
 
 if (-not (Test-Path DellSmbios:\PowerManagement)) {
-    Write-Error "Il percorso DellSmbios:\PowerManagement non è disponibile. Il tuo modello/BIOS potrebbe non esporre queste impostazioni, o il BIOS necessita di un aggiornamento."
+    Write-Error "The DellSmbios:\PowerManagement path is not available. Your model/BIOS may not expose these settings, or the BIOS may need an update."
     exit 1
 }
 
@@ -62,42 +62,42 @@ function Get-CurrentChargeState {
     }
 }
 
-# Passo 3: leggi e logga lo stato attuale PRIMA di modificare qualsiasi cosa
+# Read and log the current state BEFORE changing anything
 $before = Get-CurrentChargeState
-Write-Host "Stato attuale: PrimaryBattChargeCfg=$($before.PrimaryBattChargeCfg) CustomChargeStart=$($before.CustomChargeStart) CustomChargeStop=$($before.CustomChargeStop)"
+Write-Host "Current state: PrimaryBattChargeCfg=$($before.PrimaryBattChargeCfg) CustomChargeStart=$($before.CustomChargeStart) CustomChargeStop=$($before.CustomChargeStop)"
 ($before | ConvertTo-Json -Compress) | Add-Content -Path $LogPath
 
 switch ($Profile) {
     '60_65'      { $cfg = 'Custom'; $start = 60; $stop = 65 }
     '75_80'      { $cfg = 'Custom'; $start = 75; $stop = 80 }
-    'standard'   { $cfg = 'Standard'; $start = $null; $stop = $null }   # ricarica normale, fino al 100%
-    'fastcharge' { $cfg = 'Express'; $start = $null; $stop = $null }    # ExpressCharge (ricarica rapida)
+    'standard'   { $cfg = 'Standard'; $start = $null; $stop = $null }   # normal charging, up to 100%
+    'fastcharge' { $cfg = 'Express'; $start = $null; $stop = $null }    # ExpressCharge (fast charging)
 }
 
 if ($cfg -eq 'Custom') {
     if ($start -lt 50 -or $start -gt 95) {
-        Write-Error "CustomChargeStart fuori range (50-95): $start"
+        Write-Error "CustomChargeStart out of range (50-95): $start"
         exit 1
     }
     if ($stop -lt 55 -or $stop -gt 100) {
-        Write-Error "CustomChargeStop fuori range (55-100): $stop"
+        Write-Error "CustomChargeStop out of range (55-100): $stop"
         exit 1
     }
     if (($stop - $start) -lt 5) {
-        Write-Error "Differenza minima tra start e stop deve essere di 5 punti percentuali (attuale: $($stop - $start))"
+        Write-Error "Start and stop must be at least 5 percentage points apart (current: $($stop - $start))"
         exit 1
     }
 }
 
-if ($PSCmdlet.ShouldProcess("DellSmbios:\PowerManagement", "Applica profilo '$Profile' (PrimaryBattChargeCfg=$cfg, Start=$start, Stop=$stop)")) {
+if ($PSCmdlet.ShouldProcess("DellSmbios:\PowerManagement", "Apply profile '$Profile' (PrimaryBattChargeCfg=$cfg, Start=$start, Stop=$stop)")) {
     Set-Item -Path DellSmbios:\PowerManagement\PrimaryBattChargeCfg -Value $cfg
 
     if ($cfg -eq 'Custom') {
-        # Il BIOS valida ogni singola scrittura rispetto al valore CORRENTE dell'altro
-        # estremo (non rispetto alla coppia finale): passando da un intervallo più basso
-        # a uno più alto (es. 60-65 -> 75-80), scrivere prima Start fallisce perché in
-        # quel momento Stop è ancora il vecchio valore, più basso del nuovo Start.
-        # Se il primo ordine fallisce per questo motivo, proviamo l'ordine opposto.
+        # The BIOS validates each single write against the CURRENT value of the
+        # other bound (not against the final pair): when moving from a lower range
+        # to a higher one (e.g. 60-65 -> 75-80), writing Start first fails because
+        # at that moment Stop still has the old value, lower than the new Start.
+        # If the first order fails for this reason, we try the opposite order.
         try {
             Set-Item -Path DellSmbios:\PowerManagement\CustomChargeStop -Value $stop
             Set-Item -Path DellSmbios:\PowerManagement\CustomChargeStart -Value $start
@@ -108,6 +108,6 @@ if ($PSCmdlet.ShouldProcess("DellSmbios:\PowerManagement", "Applica profilo '$Pr
     }
 
     $after = Get-CurrentChargeState
-    Write-Host "Nuovo stato:  PrimaryBattChargeCfg=$($after.PrimaryBattChargeCfg) CustomChargeStart=$($after.CustomChargeStart) CustomChargeStop=$($after.CustomChargeStop)"
+    Write-Host "New state:     PrimaryBattChargeCfg=$($after.PrimaryBattChargeCfg) CustomChargeStart=$($after.CustomChargeStart) CustomChargeStop=$($after.CustomChargeStop)"
     ($after | ConvertTo-Json -Compress) | Add-Content -Path $LogPath
 }

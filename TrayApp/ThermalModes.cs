@@ -8,15 +8,15 @@ internal enum ThermalMode
     Ultra,
 }
 
-/// Metadati di una modalità termica di Dell Optimizer. StateId è quanto viene inviato
-/// all'helper elevato (come "thermal:<StateId>", deve combaciare con i valori accettati
-/// da Set-ThermalMode in BatteryChargeHelper.ps1) e salvato in state.json; DellValue è
-/// il nome usato da Dell Optimizer stesso, per riconoscere la modalità attiva.
+/// Metadata of a Dell Optimizer thermal mode. StateId is what gets sent to the elevated
+/// helper (as "thermal:<StateId>", it must match the values accepted by Set-ThermalMode
+/// in BatteryChargeHelper.ps1) and saved in state.json; DellValue is the name Dell
+/// Optimizer itself uses, to recognize the active mode.
 internal sealed record ThermalModeInfo(ThermalMode Id, string MenuText, string StateId, string DellValue);
 
 internal static class ThermalModes
 {
-    // L'ordine qui determina l'ordine delle voci nel menu contestuale (lo stesso di Dell Optimizer).
+    // The order here determines the order of the items in the context menu (same as Dell Optimizer).
     public static readonly IReadOnlyList<ThermalModeInfo> All = new[]
     {
         new ThermalModeInfo(ThermalMode.Optimized, "Optimized", "optimized", "Optimized"),

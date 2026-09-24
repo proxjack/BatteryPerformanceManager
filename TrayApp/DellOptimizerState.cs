@@ -3,16 +3,16 @@ using Microsoft.Win32;
 
 namespace BatteryChargeManager.TrayApp;
 
-/// Legge, SENZA privilegi elevati, la modalità termica attualmente impostata in Dell
-/// Optimizer. La modalità può cambiare anche fuori da questa app (interfaccia di Dell
-/// Optimizer, oppure la modalità energetica di Windows, che Dell Optimizer tiene
-/// sincronizzata con quella termica): leggerla da qui evita di mostrare nel menu una
-/// spunta non più vera. do-cli.exe richiede l'amministratore, quindi si usa il file
-/// %ProgramData%\{DataFolderName}\DellOptimizer\TelemetrySettings.json, leggibile da
-/// tutti gli utenti e aggiornato da Dell Optimizer a ogni cambio.
+/// Reads, WITHOUT elevated privileges, the thermal mode currently set in Dell
+/// Optimizer. The mode can also change outside this app (the Dell Optimizer UI, or
+/// the Windows power mode, which Dell Optimizer keeps in sync with the thermal one):
+/// reading it from here avoids showing a checkmark in the menu that's no longer
+/// true. do-cli.exe requires administrator rights, so this uses
+/// %ProgramData%\{DataFolderName}\DellOptimizer\TelemetrySettings.json instead,
+/// which every user can read and Dell Optimizer updates on every change.
 ///
-/// È un file interno di Dell, non un'interfaccia documentata: in qualunque caso
-/// imprevisto si restituisce null e il chiamante ripiega sull'ultimo valore applicato.
+/// It's an internal Dell file, not a documented interface: in any unexpected case
+/// this returns null and the caller falls back to the last applied value.
 internal static class DellOptimizerState
 {
     private const string RegistryKeyPath = @"SOFTWARE\DELL\DellOptimizer";
@@ -37,7 +37,7 @@ internal static class DellOptimizerState
                 return null;
             }
 
-            // FileShare.ReadWrite: Dell Optimizer può star scrivendo il file proprio ora.
+            // FileShare.ReadWrite: Dell Optimizer may be writing the file right now.
             using var stream = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
             using JsonDocument doc = JsonDocument.Parse(stream);
             return FindSettingValue(doc.RootElement, "ThermalMode");
@@ -48,8 +48,8 @@ internal static class DellOptimizerState
         }
     }
 
-    // Il file è un albero di { "name", "value", "subSettings": [...] }: la posizione
-    // esatta dell'impostazione non è garantita, quindi la si cerca in tutto l'albero.
+    // The file is a tree of { "name", "value", "subSettings": [...] }: the exact
+    // position of the setting isn't guaranteed, so it's searched in the whole tree.
     private static string? FindSettingValue(JsonElement element, string settingName)
     {
         switch (element.ValueKind)

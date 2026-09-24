@@ -12,7 +12,7 @@
     <AssemblyName>TrayApp</AssemblyName>
     <RootNamespace>BatteryChargeManager.TrayApp</RootNamespace>
 
-    <!-- Pubblicazione standalone: nessuna dipendenza da .NET installato sul PC dell'utente. -->
+    <!-- Standalone publish: no dependency on .NET being installed on the user's PC. -->
     <SelfContained>true</SelfContained>
     <RuntimeIdentifier>win-x64</RuntimeIdentifier>
     <PublishSingleFile>true</PublishSingleFile>
@@ -21,15 +21,15 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <!-- Wrapper .NET per il Task Scheduler di Windows: più robusto e verificabile
-         programmaticamente rispetto a shellare schtasks.exe (stato, ultimo exit code, ecc). -->
+    <!-- .NET wrapper for the Windows Task Scheduler: more robust and programmatically
+         verifiable than shelling out to schtasks.exe (state, last exit code, etc). -->
     <PackageReference Include="TaskScheduler" Version="2.10.1" />
   </ItemGroup>
 
   <ItemGroup>
-    <!-- Incorporata anche come risorsa, così il NotifyIcon in tray può caricarla a runtime
-         a una dimensione precisa (vedi TrayApplicationContext.cs), oltre a essere l'icona
-         dell'eseguibile stesso (ApplicationIcon sopra). -->
+    <!-- Also embedded as a resource, so the tray NotifyIcon can load it at runtime at a
+         precise size (see TrayApplicationContext.cs), besides being the icon of the
+         executable itself (ApplicationIcon above). -->
     <EmbeddedResource Include="battery.ico" />
   </ItemGroup>
 
