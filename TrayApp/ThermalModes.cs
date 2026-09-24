@@ -8,21 +8,23 @@ internal enum ThermalMode
     Ultra,
 }
 
-/// Metadata of a Dell Optimizer thermal mode. StateId is what gets sent to the elevated
-/// helper (as "thermal:<StateId>", it must match the values accepted by Set-ThermalMode
-/// in BatteryChargeHelper.ps1) and saved in state.json; DellValue is the name Dell
+/// Metadata of a Dell Optimizer thermal mode. Title is the menu text, ShortTitle the
+/// one that fits a flyout tile. StateId is what gets sent to the elevated helper (as
+/// "thermal:<StateId>", it must match the values accepted by Set-ThermalMode in
+/// BatteryChargeHelper.ps1) and saved in state.json; DellValue is the name Dell
 /// Optimizer itself uses, to recognize the active mode.
-internal sealed record ThermalModeInfo(ThermalMode Id, string MenuText, string StateId, string DellValue);
+internal sealed record ThermalModeInfo(
+    ThermalMode Id, string Title, string ShortTitle, string Description, string Glyph, string StateId, string DellValue);
 
 internal static class ThermalModes
 {
-    // The order here determines the order of the items in the context menu (same as Dell Optimizer).
+    // The order here determines the order of the items in the menu and the flyout (same as Dell Optimizer).
     public static readonly IReadOnlyList<ThermalModeInfo> All = new[]
     {
-        new ThermalModeInfo(ThermalMode.Optimized, "Optimized", "optimized", "Optimized"),
-        new ThermalModeInfo(ThermalMode.Cool, "Cool", "cool", "Cool"),
-        new ThermalModeInfo(ThermalMode.Quiet, "Quiet", "quiet", "Quiet"),
-        new ThermalModeInfo(ThermalMode.Ultra, "Ultra Performance", "ultra", "Ultra"),
+        new ThermalModeInfo(ThermalMode.Optimized, "Optimized", "Optimized", "Balanced", Glyphs.SpeedMedium, "optimized", "Optimized"),
+        new ThermalModeInfo(ThermalMode.Cool, "Cool", "Cool", "Cooler surface", Glyphs.Thermometer, "cool", "Cool"),
+        new ThermalModeInfo(ThermalMode.Quiet, "Quiet", "Quiet", "Lower fan noise", Glyphs.Moon, "quiet", "Quiet"),
+        new ThermalModeInfo(ThermalMode.Ultra, "Ultra Performance", "Ultra", "Max performance", Glyphs.SpeedHigh, "ultra", "Ultra"),
     };
 
     public static ThermalModeInfo? FromStateId(string? stateId) =>

@@ -167,21 +167,35 @@ If the helper script lives somewhere else, pass `-HelperScriptPath`:
 ## 3. Day-to-day use
 
 Launch `TrayApp.exe` (copy it wherever you like, e.g.
-`%LOCALAPPDATA%\BatteryChargeManager\`). An icon appears in the system tray.
-Right-click for the menu:
+`%LOCALAPPDATA%\BatteryChargeManager\`). An icon appears in the system tray:
 
-- **Battery charge**: **60-65 (minimal wear)** / **75-80** / **Standard
-  (charges up to 100%)** / **Fast charge** — applies the corresponding profile
-  (no UAC prompt, no visible window). The first switch of a session takes
-  ~10-12s (the helper is starting up); every switch after that is typically
-  under 2 seconds.
+- **Left-click** opens a Windows 11 style flyout above the tray, with the
+  battery status, a tile for each charge profile and thermal mode, the
+  auto-start switch and Exit. The active tiles are filled with the Windows
+  accent color; the one being applied shows a spinner and "Applying…", and a
+  tile whose switch failed shows "Couldn't apply" for a few seconds (details
+  in `errors.log`). The flyout closes when you click anywhere else or press
+  Esc.
+- **Right-click** opens the same choices as a compact menu, where the active
+  profile and mode are marked with an accent-colored bar and icon.
+
+The choices are:
+
+- **Battery charge**: **60-65** (minimal wear) / **75-80** (low wear) /
+  **Standard** (charges up to 100%) / **Fast charge** (ExpressCharge) —
+  applies the corresponding profile (no UAC prompt, no visible window). The
+  first switch of a session takes ~10-12s (the helper is starting up); every
+  switch after that is typically under 2 seconds.
 - **Performance** (thermal mode): **Optimized** / **Cool** / **Quiet** / **Ultra
-  Performance** — same as picking it in Dell Optimizer. The checkmark shows
-  the mode currently set in Dell Optimizer, even if it was changed from there.
-- **Auto-start** — enables/disables the tray app starting at login (checkbox)
+  Performance** — same as picking it in Dell Optimizer. The active one is the
+  mode currently set in Dell Optimizer, even if it was changed from there.
+- **Auto-start** — enables/disables the tray app starting at login (switch)
 - **Exit**
 
-The last successfully applied charge profile stays checked in the menu even
+Both the menu and the flyout follow the Windows light/dark mode and accent
+color (Settings > Personalization > Colors), read every time they open.
+
+The last successfully applied charge profile stays marked as active even
 after restarting the app or the PC — it's purely a visual indicator, **it is
 never reapplied automatically**. The same goes for the thermal mode: nothing
 is reapplied at startup.
@@ -244,6 +258,8 @@ lowering the range).
 
 - It does not modify `Set-DellBatteryChargeProfile.ps1`'s core logic.
 - It never runs the tray app itself with administrator privileges.
-- It shows no toast notifications, confirmation popups, or per-profile icons.
+- It shows no toast notifications, confirmation popups, or per-profile icons,
+  and never opens a window on its own: the flyout only appears when you click
+  the tray icon.
 - It never reapplies a profile or thermal mode automatically on app or PC startup.
 - It doesn't replace Dell Optimizer: the thermal mode goes through it.

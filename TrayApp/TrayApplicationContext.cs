@@ -1,133 +1,118 @@
-using System.Drawing;
+using System.ComponentModel;
 using System.Windows.Forms;
 
 namespace BatteryChargeManager.TrayApp;
 
-/// Windowless application context: the whole UI is the NotifyIcon in the system
-/// tray and its context menu. No popups, no toast notifications, no per-profile
-/// icon changes (explicit requirement: minimal interface).
+/// Windowless application context: the UI is the tray icon, its right-click menu
+/// (TrayMenu) and the flyout opened by a left click (QuickFlyout). Both show the same
+/// state, kept here. No toast notifications and nothing opens on its own: the flyout
+/// only appears when the icon is clicked.
 internal sealed class TrayApplicationContext : ApplicationContext
 {
+    private const string AppName = "Battery Charge Manager";
+
     private readonly NotifyIcon _notifyIcon;
-    private readonly Dictionary<ChargeProfile, ToolStripMenuItem> _profileItems = new();
-    private readonly Dictionary<ThermalMode, ToolStripMenuItem> _thermalItems = new();
-    private readonly ToolStripMenuItem _autoStartItem;
-    private bool _busy;
+    private readonly TrayMenu _menu = new();
+    private readonly QuickFlyout _flyout = new();
+
+    private ChargeProfile? _activeProfile;
+    private ThermalMode? _activeThermalMode;
+    // The ChargeProfileInfo or ThermalModeInfo being applied right now, if any.
+    private object? _busyItem;
 
     public TrayApplicationContext()
     {
-        var menu = new ContextMenuStrip();
+        _menu.ProfileRequested += (_, profile) => ApplyProfile(profile);
+        _menu.ThermalModeRequested += (_, mode) => ApplyThermalMode(mode);
+        _menu.AutoStartToggleRequested += (_, _) => ToggleAutoStart();
+        _menu.ExitRequested += (_, _) => ExitApplication();
+        _menu.Opening += OnMenuOpening;
 
-        menu.Items.Add(CreateSectionHeader("Battery charge"));
-        foreach (ChargeProfileInfo profile in Profiles.All)
-        {
-            var item = new ToolStripMenuItem(profile.MenuText)
-            {
-                Tag = profile,
-            };
-            item.Click += OnProfileClicked;
-            menu.Items.Add(item);
-            _profileItems[profile.Id] = item;
-        }
-
-        menu.Items.Add(new ToolStripSeparator());
-
-        menu.Items.Add(CreateSectionHeader("Performance"));
-        foreach (ThermalModeInfo mode in ThermalModes.All)
-        {
-            var item = new ToolStripMenuItem(mode.MenuText)
-            {
-                Tag = mode,
-            };
-            item.Click += OnThermalModeClicked;
-            menu.Items.Add(item);
-            _thermalItems[mode.Id] = item;
-        }
-
-        // The thermal mode can also change outside this app (Dell Optimizer, Windows
-        // power mode): it's re-read every time the menu opens.
-        menu.Opening += (_, _) => RefreshCheckedThermalMode();
-
-        menu.Items.Add(new ToolStripSeparator());
-
-        _autoStartItem = new ToolStripMenuItem("Auto-start")
-        {
-            CheckOnClick = false,
-            Checked = AutoStart.IsEnabled(),
-        };
-        _autoStartItem.Click += OnAutoStartClicked;
-        menu.Items.Add(_autoStartItem);
-
-        menu.Items.Add(new ToolStripSeparator());
-
-        var exitItem = new ToolStripMenuItem("Exit");
-        exitItem.Click += (_, _) => ExitApplication();
-        menu.Items.Add(exitItem);
+        _flyout.ProfileRequested += (_, profile) => ApplyProfile(profile);
+        _flyout.ThermalModeRequested += (_, mode) => ApplyThermalMode(mode);
+        _flyout.AutoStartToggleRequested += (_, _) => ToggleAutoStart();
+        _flyout.ExitRequested += (_, _) => ExitApplication();
 
         _notifyIcon = new NotifyIcon
         {
-            Icon = LoadTrayIcon(),
-            Text = "Battery Charge Manager",
-            ContextMenuStrip = menu,
+            Icon = AppIcon.Load(SystemInformation.SmallIconSize),
+            Text = AppName,
+            ContextMenuStrip = _menu,
             Visible = true,
         };
+        _notifyIcon.MouseClick += OnNotifyIconClick;
 
-        // Visually marks (for information only) the last successfully applied profile,
-        // read from state.json. Nothing is reapplied: no scheduled task is started when
-        // the app starts.
-        ChargeProfileInfo? lastProfile = Profiles.FromStateId(StateStore.Load().LastProfile);
-        if (lastProfile is not null)
-        {
-            SetCheckedProfile(lastProfile.Id);
-        }
-
-        RefreshCheckedThermalMode();
+        // The last successfully applied profile, read from state.json, is only shown as
+        // active. Nothing is reapplied: no scheduled task is started when the app starts.
+        _activeProfile = Profiles.FromStateId(StateStore.Load().LastProfile)?.Id;
+        RefreshThermalMode();
+        UpdateViews();
     }
 
-    private async void OnProfileClicked(object? sender, EventArgs e)
+    private void OnNotifyIconClick(object? sender, MouseEventArgs e)
     {
-        if (sender is not ToolStripMenuItem { Tag: ChargeProfileInfo profile })
+        if (e.Button != MouseButtons.Left)
         {
             return;
         }
 
+        // A click on the icon while the flyout is open first makes it lose focus (and
+        // close): that same click must not reopen it.
+        if (_flyout.Visible || _flyout.WasJustHidden)
+        {
+            _flyout.HideFlyout();
+            return;
+        }
+
+        RefreshThermalMode();
+        UpdateViews();
+        _flyout.ShowFlyout(Theme.Current);
+    }
+
+    private void OnMenuOpening(object? sender, CancelEventArgs e)
+    {
+        RefreshThermalMode();
+        UpdateViews();
+        _menu.ApplyTheme(Theme.Current);
+    }
+
+    private async void ApplyProfile(ChargeProfileInfo profile)
+    {
         await RunHelperRequestAsync(
+            profile,
             () => HelperClient.SwitchProfile(profile.StateId),
             onSuccess: () =>
             {
                 StateStore.SaveLastProfile(profile.StateId);
-                SetCheckedProfile(profile.Id);
+                _activeProfile = profile.Id;
             },
-            failureDescription: $"Switching to charge profile '{profile.MenuText}'");
+            failureDescription: $"Switching to charge profile '{profile.Title}'");
     }
 
-    private async void OnThermalModeClicked(object? sender, EventArgs e)
+    private async void ApplyThermalMode(ThermalModeInfo mode)
     {
-        if (sender is not ToolStripMenuItem { Tag: ThermalModeInfo mode })
-        {
-            return;
-        }
-
         await RunHelperRequestAsync(
+            mode,
             () => HelperClient.SetThermalMode(mode.StateId),
             onSuccess: () =>
             {
                 StateStore.SaveLastThermalMode(mode.StateId);
-                SetCheckedThermalMode(mode.Id);
+                _activeThermalMode = mode.Id;
             },
-            failureDescription: $"Switching to thermal mode '{mode.MenuText}'");
+            failureDescription: $"Switching to thermal mode '{mode.Title}'");
     }
 
-    // One request at a time: the helper serves them sequentially anyway, and a second
-    // click during the first switch would just be queued without any visual feedback.
-    private async Task RunHelperRequestAsync(Func<TaskRunResult> request, Action onSuccess, string failureDescription)
+    // One request at a time: the helper serves them sequentially anyway, and the
+    // flyout shows which one is in progress.
+    private async Task RunHelperRequestAsync(object item, Func<TaskRunResult> request, Action onSuccess, string failureDescription)
     {
-        if (_busy)
+        if (_busyItem is not null)
         {
             return;
         }
 
-        _busy = true;
+        _busyItem = item;
+        UpdateViews();
         try
         {
             TaskRunResult result = await Task.Run(request);
@@ -138,89 +123,68 @@ internal sealed class TrayApplicationContext : ApplicationContext
             }
             else
             {
-                // No popup/toast by explicit requirement: the error only goes to the
-                // local log the user can read at %APPDATA%\BatteryChargeManager\errors.log.
+                // No popup/toast by explicit requirement: the details only go to the
+                // local log the user can read at %APPDATA%\BatteryChargeManager\errors.log,
+                // the flyout just marks the tile.
                 ErrorLog.Write($"{failureDescription} failed: {result.ErrorDetail}");
+                _flyout.ShowFailure(item);
             }
         }
         finally
         {
-            _busy = false;
+            _busyItem = null;
+            UpdateViews();
         }
     }
 
-    private void OnAutoStartClicked(object? sender, EventArgs e)
+    private void ToggleAutoStart()
     {
         try
         {
             AutoStart.Toggle();
-            _autoStartItem.Checked = AutoStart.IsEnabled();
         }
         catch (Exception ex)
         {
             ErrorLog.Write($"Could not update auto-start: {ex.Message}");
         }
+
+        UpdateViews();
     }
 
-    // Loads the app.ico frame matching the tray's icon size at the current display scaling
-    // (16 px at 100%, 20 at 125%, 24 at 150%, 28 at 175%, 32 at 200%...: the process is
-    // DPI-aware, so SmallIconSize is already scaled), instead of letting Windows shrink a
-    // bigger frame - the small frames are simplified by hand to stay readable.
-    private static Icon LoadTrayIcon()
-    {
-        try
-        {
-            using Stream? stream = typeof(TrayApplicationContext).Assembly
-                .GetManifestResourceStream("BatteryChargeManager.TrayApp.app.ico");
-
-            return stream is not null ? new Icon(stream, SystemInformation.SmallIconSize) : SystemIcons.Application;
-        }
-        catch
-        {
-            return SystemIcons.Application;
-        }
-    }
-
-    // Non-clickable section header, to tell charge profiles apart from thermal
-    // modes (e.g. "Standard" vs "Optimized").
-    private static ToolStripMenuItem CreateSectionHeader(string text) => new(text)
-    {
-        Enabled = false,
-    };
-
-    private void SetCheckedProfile(ChargeProfile active)
-    {
-        foreach ((ChargeProfile id, ToolStripMenuItem item) in _profileItems)
-        {
-            item.Checked = id == active;
-        }
-    }
-
-    // Prefers the mode actually set in Dell Optimizer; if that can't be read, falls
-    // back to the last one successfully applied by this app.
-    private void RefreshCheckedThermalMode()
+    // Prefers the mode actually set in Dell Optimizer (it can also change from Dell
+    // Optimizer itself or the Windows power mode); if that can't be read, falls back
+    // to the last one successfully applied by this app.
+    private void RefreshThermalMode()
     {
         ThermalModeInfo? current = ThermalModes.FromDellValue(DellOptimizerState.TryReadThermalMode())
             ?? ThermalModes.FromStateId(StateStore.Load().LastThermalMode);
 
         if (current is not null)
         {
-            SetCheckedThermalMode(current.Id);
+            _activeThermalMode = current.Id;
         }
     }
 
-    private void SetCheckedThermalMode(ThermalMode active)
+    private void UpdateViews()
     {
-        foreach ((ThermalMode id, ToolStripMenuItem item) in _thermalItems)
+        bool autoStart = AutoStart.IsEnabled();
+        _menu.UpdateState(_activeProfile, _activeThermalMode, autoStart);
+        _flyout.UpdateState(_activeProfile, _activeThermalMode, _busyItem, autoStart);
+
+        _notifyIcon.Text = _busyItem switch
         {
-            item.Checked = id == active;
-        }
+            ChargeProfileInfo profile => $"{AppName} - applying {profile.Title}…",
+            ThermalModeInfo mode => $"{AppName} - applying {mode.Title}…",
+            _ => AppName,
+        };
     }
 
     private void ExitApplication()
     {
         _notifyIcon.Visible = false;
         _notifyIcon.Dispose();
+        _flyout.Dispose();
+        _menu.Dispose();
         Application.Exit();
     }
 }
