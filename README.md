@@ -7,6 +7,15 @@ and the Dell Optimizer thermal mode (Optimized / Cool / Quiet / Ultra
 Performance) with a single click from the system tray — no UAC prompts, and
 the tray app itself never runs as administrator.
 
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="assets/screenshot-dark.png">
+    <img src="assets/screenshot-light.png" alt="The Battery and Performance Manager flyout, with tiles for the battery charge profiles and the performance modes">
+  </picture>
+  <br>
+  <sub>The flyout follows the Windows light/dark mode and accent color.</sub>
+</p>
+
 It talks to the BIOS through Dell's `DellBIOSProvider` PowerShell module and
 to Dell Optimizer through its own CLI, via a persistent elevated helper
 ([`BatteryPerformanceHelper.ps1`](BatteryPerformanceHelper.ps1)) that avoids
